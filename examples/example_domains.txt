@@ -1,0 +1,22 @@
+[
+  {
+    "company_name": "Example Company Inc",
+    "website": "https://example.com"
+  }
+]
+[
+  {
+    "company_name": "Tech Solutions LLC",
+    "website": "techsolutions.com"
+  },
+  {
+    "company_name": "Global Services Corp",
+    "website": "https://globalservices.net"
+  }
+]
+[
+  {
+    "company_name": "Innovation Labs",
+    "website": "innovationlabs.io"
+  }
+]

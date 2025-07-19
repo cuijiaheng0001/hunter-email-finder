@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hunter邮箱查找工具 - 完整版</title>
+    
+    <style>
+        /* 全局样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* 头部样式 */
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        /* 卡片样式 */
+        .card {
+            background: white;
+            border-radius: 8px;
+            padding: 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        /* 表单样式 */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            font-family: 'Courier New', monospace;
+        }
+
+        small {
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-block;
+            margin-right: 10px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #48bb78;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #38a169;
+        }
+
+        /* API密钥卡片样式 */
+        .api-card {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 2px solid #667eea;
+        }
+
+        .api-input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .api-input-group input {
+            flex: 1;
+        }
+
+        .btn-icon {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 5px;
+            padding: 8px 12px;
+            cursor: pointer;
+            font-size: 1.2em;
+            transition: all 0.3s;
+        }
+
+        .btn-icon:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+        }
+
+        .api-actions {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .btn-small {
+            padding: 8px 20px;
+            font-size: 14px;
+        }
+
+        .btn-info {
+            background: #3182ce;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #2c5282;
+        }
+
+        .api-status {
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 5px;
+        }
+
+        .api-status.success {
+            color: #22543d;
+            background: #c6f6d5;
+        }
+
+        .api-status.error {
+            color: #742a2a;
+            background: #fed7d7;
+        }
+
+        .api-status.testing {
+            color: #92400e;
+            background: #fef3c7;
+        }
+
+        .api-info {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .api-info ul {
+            margin: 10px 0 0 20px;
+            line-height: 1.8;
+        }
+
+        /* 结果显示 */
+        #results {
+            margin-top: 30px;
+        }
+
+        .result-item {
+            border-bottom: 1px solid #e0e0e0;
+            padding: 20px 0;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .company-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .company-name {
+            font-size: 1.2em;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .domain {
+            color: #667eea;
+            font-family: 'Courier New', monospace;
+        }
+
+        .email-count {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+        }
+
+        .email-list {
+            margin-top: 15px;
+        }
+
+        .email-item {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .email-address {
+            font-family: 'Courier New', monospace;
+            color: #2d3748;
+            font-weight: 500;
+        }
+
+        .email-details {
+            font-size: 0.9em;
+            color: #666;
+        }
+
+        .confidence {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            margin-left: 10px;
+        }
+
+        .confidence-high {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .confidence-medium {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .confidence-low {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        /* 邮箱类型样式 */
+        .email-type {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-right: 5px;
+        }
+
+        .type-personal {
+            background: #e6f3ff;
+            color: #0066cc;
+        }
+
+        .type-generic {
+            background: #fff4e6;
+            color: #cc6600;
+        }
+
+        .type-unknown {
+            background: #f0f0f0;
+            color: #666;
+        }
+
+        /* 加载动画 */
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* 错误消息 */
+        .error {
+            background: #fed7d7;
+            color: #742a2a;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        .success {
+            background: #c6f6d5;
+            color: #22543d;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+
+        /* 操作按钮组 */
+        .actions {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        /* 统计信息 */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 5px;
+        }
+
+        /* 格式信息 */
+        .format-info {
+            margin-top: 15px;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            color: #666;
+        }
+
+        .format-info strong {
+            color: #333;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            header h1 {
+                font-size: 2em;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+            
+            .btn {
+                display: block;
+                width: 100%;
+                margin-bottom: 10px;
+            }
+            
+            .company-info {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .email-count {
+                margin-top: 10px;
+            }
+        }
+
+        /* 文件上传样式 */
+        input[type="file"] {
+            padding: 8px;
+            background: #f8f9fa;
+        }
+
+        /* 页脚 */
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #666;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Hunter邮箱查找工具</h1>
+            <p>使用 Hunter.io API 查找公司域名的邮箱地址 - 完整独立版</p>
+        </header>
+
+        <div class="main-content">
+            <!-- API密钥设置 -->
+            <div class="card api-card">
+                <h2>🔑 API 密钥设置</h2>
+                <div class="form-group">
+                    <label for="apiKey">Hunter.io API 密钥:</label>
+                    <div class="api-input-group">
+                        <input type="password" id="apiKey" placeholder="输入你的 Hunter.io API 密钥" class="form-control">
+                        <button onclick="toggleApiKeyVisibility()" class="btn-icon" title="显示/隐藏密钥">
+                            <span id="toggleIcon">👁️</span>
+                        </button>
+                    </div>
+                    <div class="api-actions">
+                        <button onclick="saveApiKey()" class="btn btn-small btn-primary">保存密钥</button>
+                        <button onclick="clearApiKey()" class="btn btn-small btn-secondary">清除密钥</button>
+                        <button onclick="testApiKey()" class="btn btn-small btn-info">测试连接</button>
+                    </div>
+                    <small>
+                        <span id="apiStatus" class="api-status"></span>
+                        <br>
+                        获取密钥: <a href="https://hunter.io/api" target="_blank">https://hunter.io/api</a> | 
+                        <a href="https://hunter.io/api-keys" target="_blank">管理密钥</a>
+                    </small>
+                </div>
+                <div class="api-info">
+                    <p><strong>说明：</strong></p>
+                    <ul>
+                        <li>密钥将安全保存在浏览器本地存储中</li>
+                        <li>关闭浏览器后密钥仍会保留</li>
+                        <li>密钥不会上传到服务器或保存在文件中</li>
+                        <li>如需更换密钥，点击"清除密钥"后重新输入</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- ChatGPT API设置 -->
+            <div class="card api-card">
+                <h2>🤖 ChatGPT API 设置（可选）</h2>
+                <div class="form-group">
+                    <label for="openaiKey">OpenAI API 密钥:</label>
+                    <div class="api-input-group">
+                        <input type="password" id="openaiKey" placeholder="输入你的 OpenAI API 密钥（sk-...）" class="form-control">
+                        <button onclick="toggleOpenAIKeyVisibility()" class="btn-icon" title="显示/隐藏密钥">
+                            <span id="toggleOpenAIIcon">👁️</span>
+                        </button>
+                    </div>
+                    <div class="api-actions">
+                        <button onclick="saveOpenAIKey()" class="btn btn-small btn-primary">保存密钥</button>
+                        <button onclick="clearOpenAIKey()" class="btn btn-small btn-secondary">清除密钥</button>
+                        <button onclick="testOpenAIKey()" class="btn btn-small btn-info">测试连接</button>
+                    </div>
+                    <small>
+                        <span id="openaiStatus" class="api-status"></span>
+                        <br>
+                        获取密钥: <a href="https://platform.openai.com/api-keys" target="_blank">OpenAI API Keys</a>
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="enableNameGuessing" style="margin-right: 8px;">
+                        启用智能名字猜测功能（对于没有First Name的个人邮箱）
+                    </label>
+                    <small style="display: block; margin-top: 5px;">
+                        启用后，AI会智能分析邮箱地址，提取或猜测合理的名字和姓氏
+                    </small>
+                </div>
+                <div class="api-info">
+                    <p><strong>功能说明：</strong></p>
+                    <ul>
+                        <li>AI会智能分析邮箱地址，提取或猜测合理的名字</li>
+                        <li>对于明确的名字（如john.smith@），AI会提取完整名字</li>
+                        <li>对于单个首字母+姓氏模式（如acarnes@），AI会保守处理，保留首字母（如A. Carnes）</li>
+                        <li>对于不清晰的模式（如rgmora@），AI会提取可识别部分（如RG Mora）</li>
+                        <li>AI会标记哪些是猜测的名字，哪些是提取的名字</li>
+                        <li>此功能需要消耗OpenAI API积分，请合理使用</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- 单个域名查找 -->
+            <div class="card">
+                <h2>单个域名查找</h2>
+                <div class="form-group">
+                    <label for="singleDomain">域名或网址:</label>
+                    <input type="text" id="singleDomain" placeholder="例如: example.com 或 https://www.example.com" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="companyName">公司名称 (可选):</label>
+                    <input type="text" id="companyName" placeholder="例如: Example Inc." class="form-control">
+                </div>
+                <div class="form-group">
+                    <label for="emailLimit">邮箱数量限制:</label>
+                    <input type="number" id="emailLimit" value="10" min="1" max="100" class="form-control">
+                </div>
+                <button onclick="searchSingle()" class="btn btn-primary">查找邮箱</button>
+            </div>
+
+            <!-- 批量查找 -->
+            <div class="card">
+                <h2>批量域名查找</h2>
+                <div class="form-group">
+                    <label for="batchInput">域名列表 (每行一个):</label>
+                    <textarea id="batchInput" rows="5" placeholder="example1.com
+example2.com
+https://example3.com" class="form-control"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>或上传文件 (CSV/TXT):</label>
+                    <input type="file" id="csvFile" accept=".csv,.txt" class="form-control">
+                    <small>
+                        支持格式：<br>
+                        • CSV: company_name, domain/website<br>
+                        • TXT: JSON格式 [{"company_name": "公司名", "website": "网址"}]
+                    </small>
+                </div>
+                <button onclick="searchBatch()" class="btn btn-primary">批量查找</button>
+            </div>
+
+            <!-- 结果显示区域 -->
+            <div id="results" class="card" style="display: none;">
+                <h2>查找结果</h2>
+                <div id="resultContent"></div>
+                <div class="actions">
+                    <button onclick="downloadInstantlyCSV()" class="btn btn-primary">下载 Instantly 格式</button>
+                    <button onclick="downloadFullCSV()" class="btn btn-secondary">下载完整 CSV</button>
+                    <button onclick="downloadJSON()" class="btn btn-secondary">下载 JSON</button>
+                    <button onclick="clearResults()" class="btn btn-secondary">清除结果</button>
+                </div>
+                <div class="format-info">
+                    <small>
+                        <strong>Instantly格式</strong>：Email, First Name, Last Name, Company Name, Phone, Job Title, Country<br>
+                        <strong>完整CSV</strong>：包含所有字段和置信度信息
+                    </small>
+                </div>
+            </div>
+
+            <!-- 加载提示 -->
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>正在查找邮箱...</p>
+            </div>
+        </div>
+
+        <footer>
+            <p>© 2025 Hunter邮箱查找工具 - 完整独立版 | 基于 Hunter.io API</p>
+        </footer>
+    </div>
+
+    <script>
+        // 全局变量存储结果
+        let currentResults = [];
+        
+        // 缓存猜测的名字，避免重复调用API
+        const nameGuessCache = new Map();
+
+        // 获取API密钥
+        function getApiKey() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (!apiKey) {
+                alert('请输入 Hunter.io API 密钥');
+                return null;
+            }
+            return apiKey;
+        }
+
+        // 单个域名查找
+        async function searchSingle() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+
+            const domain = document.getElementById('singleDomain').value.trim();
+            const companyName = document.getElementById('companyName').value.trim();
+            const limit = document.getElementById('emailLimit').value;
+
+            if (!domain) {
+                alert('请输入域名或网址');
+                return;
+            }
+
+            showLoading(true);
+            
+            try {
+                const result = await searchDomain(apiKey, domain, companyName, limit);
+                
+                // 如果启用了AI功能，处理邮箱
+                const enableGuessing = document.getElementById('enableNameGuessing').checked;
+                const openaiKey = localStorage.getItem('openaiApiKey');
+                if (enableGuessing && openaiKey && result.success && result.emails) {
+                    updateLoadingText('正在使用AI智能生成称呼...');
+                    result.emails = await processEmailsWithAI(result.emails, result.company_name);
+                }
+                
+                currentResults = [result];
+                displayResults(currentResults);
+            } catch (error) {
+                alert('查找失败: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 批量查找
+        async function searchBatch() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+
+            let domains = [];
+            
+            // 从文本框获取
+            const batchText = document.getElementById('batchInput').value.trim();
+            if (batchText) {
+                domains = batchText.split('\n').map(line => ({
+                    domain: line.trim(),
+                    company_name: ''
+                })).filter(item => item.domain);
+            }
+            
+            // 从文件获取（CSV或TXT）
+            const fileInput = document.getElementById('csvFile');
+            if (fileInput.files.length > 0) {
+                const file = fileInput.files[0];
+                const fileData = await readUploadedFile(file);
+                domains = domains.concat(fileData);
+            }
+            
+            if (domains.length === 0) {
+                alert('请输入域名或上传文件（支持CSV/TXT格式）');
+                return;
+            }
+            
+            showLoading(true);
+            currentResults = [];
+            
+            try {
+                // 批量查找，每个域名之间延迟1秒
+                for (let i = 0; i < domains.length; i++) {
+                    const item = domains[i];
+                    updateLoadingText(`正在查找 ${i + 1}/${domains.length}: ${item.domain}`);
+                    
+                    try {
+                        const result = await searchDomain(apiKey, item.domain, item.company_name);
+                        
+                        // 如果启用了AI功能，处理邮箱
+                        const enableGuessing = document.getElementById('enableNameGuessing').checked;
+                        const openaiKey = localStorage.getItem('openaiApiKey');
+                        if (enableGuessing && openaiKey && result.success && result.emails) {
+                            result.emails = await processEmailsWithAI(result.emails, result.company_name);
+                        }
+                        
+                        currentResults.push(result);
+                        displayResults(currentResults);
+                    } catch (error) {
+                        console.error(`Error for ${item.domain}:`, error);
+                        currentResults.push({
+                            company_name: item.company_name || item.domain,
+                            domain: item.domain,
+                            success: false,
+                            error: error.message,
+                            emails: []
+                        });
+                    }
+                    
+                    // 延迟以避免速率限制
+                    if (i < domains.length - 1) {
+                        await delay(1000);
+                    }
+                }
+            } finally {
+                showLoading(false);
+            }
+        }
+
+        // 调用Hunter API
+        async function searchDomain(apiKey, domain, companyName = '', limit = 10) {
+            // 提取纯域名
+            domain = extractDomain(domain);
+            
+            const url = `https://api.hunter.io/v2/domain-search?domain=${domain}&api_key=${apiKey}&limit=${limit}`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        throw new Error('API密钥无效');
+                    } else if (response.status === 429) {
+                        throw new Error('请求过于频繁，请稍后再试');
+                    } else {
+                        throw new Error(data.errors?.[0]?.details || '请求失败');
+                    }
+                }
+                
+                // 处理结果
+                const emails = data.data.emails || [];
+                
+                // 调试：打印第一个邮箱的原始数据
+                if (emails.length > 0) {
+                    console.log('第一个邮箱的原始数据:', emails[0]);
+                }
+                
+                const processedEmails = emails.map(email => {
+                    const processed = {
+                        email: email.value,
+                        type: email.type || 'unknown',  // personal, generic, or unknown
+                        first_name: email.first_name,
+                        last_name: email.last_name,
+                        position: email.position,
+                        department: email.department,
+                        confidence: email.confidence,
+                        sources: email.sources?.length || 0
+                    };
+                    
+                    // 调试：检查处理后的数据
+                    console.log('处理后的邮箱数据:', processed);
+                    return processed;
+                });
+                
+                return {
+                    company_name: companyName || data.data.organization || domain,
+                    domain: domain,
+                    success: true,
+                    emails_found: emails.length,
+                    emails: processedEmails,
+                    pattern: data.data.pattern,
+                    organization: data.data.organization
+                };
+            } catch (error) {
+                throw error;
+            }
+        }
+
+        // 提取域名
+        function extractDomain(url) {
+            // 移除协议
+            url = url.replace(/^https?:\/\//, '');
+            // 移除www
+            url = url.replace(/^www\./, '');
+            // 移除路径
+            url = url.split('/')[0];
+            // 移除端口
+            url = url.split(':')[0];
+            return url;
+        }
+
+        // 读取上传的文件（支持CSV和TXT/JSON格式）
+        async function readUploadedFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const text = e.target.result;
+                    const fileName = file.name.toLowerCase();
+                    
+                    try {
+                        if (fileName.endsWith('.csv')) {
+                            // 处理CSV格式
+                            const lines = text.split('\n');
+                            const results = [];
+                            
+                            for (let i = 1; i < lines.length; i++) { // 跳过标题行
+                                const line = lines[i].trim();
+                                if (!line) continue;
+                                
+                                const parts = line.split(',').map(p => p.trim());
+                                if (parts.length >= 2) {
+                                    results.push({
+                                        company_name: parts[0],
+                                        domain: parts[1]
+                                    });
+                                } else if (parts.length === 1) {
+                                    results.push({
+                                        company_name: '',
+                                        domain: parts[0]
+                                    });
+                                }
+                            }
+                            
+                            resolve(results);
+                        } else if (fileName.endsWith('.txt')) {
+                            // 使用新的JSON解析方法
+                            const { results, errors } = parseMultiArrayJSON(text);
+                            
+                            if (errors.length > 0) {
+                                console.warn('JSON解析警告:', errors);
+                                alert(`成功解析 ${results.length} 个公司\n\n${errors.length > 0 ? '注意：\n' + errors.join('\n') : ''}`);
+                            } else {
+                                console.log(`成功解析 ${results.length} 个公司`);
+                            }
+                            
+                            resolve(results);
+                        } else {
+                            reject(new Error('不支持的文件格式'));
+                        }
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsText(file, 'UTF-8');
+            });
+        }
+
+        // JSON解析方法
+        function parseMultiArrayJSON(text) {
+            const results = [];
+            const errors = [];
+            
+            // 将文本按 ][ 分割成多个数组
+            text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+            
+            // 查找所有的JSON数组
+            const arrayPattern = /\[\s*\{[\s\S]*?\}\s*\]/g;
+            let match;
+            let lastEnd = 0;
+            
+            while ((match = arrayPattern.exec(text)) !== null) {
+                try {
+                    // 尝试解析找到的数组
+                    const arrayStr = match[0];
+                    const parsed = JSON.parse(arrayStr);
+                    
+                    if (Array.isArray(parsed)) {
+                        parsed.forEach(item => {
+                            results.push({
+                                company_name: item.company_name || '',
+                                domain: item.website || item.domain || ''
+                            });
+                        });
+                    }
+                } catch (e) {
+                    // 如果解析失败，尝试修复常见问题
+                    try {
+                        let fixedStr = match[0]
+                            .replace(/,\s*}/g, '}')  // 移除对象末尾的逗号
+                            .replace(/,\s*]/g, ']'); // 移除数组末尾的逗号
+                        
+                        const parsed = JSON.parse(fixedStr);
+                        if (Array.isArray(parsed)) {
+                            parsed.forEach(item => {
+                                results.push({
+                                    company_name: item.company_name || '',
+                                    domain: item.website || item.domain || ''
+                                });
+                            });
+                            errors.push(`修复并解析了一个格式错误的数组`);
+                        }
+                    } catch (e2) {
+                        errors.push(`无法解析数组: ${e2.message}`);
+                    }
+                }
+                lastEnd = match.index + match[0].length;
+            }
+            
+            // 检查是否有未完成的数组
+            const remaining = text.substring(lastEnd).trim();
+            if (remaining && remaining.startsWith('[')) {
+                // 尝试修复并解析未完成的数组
+                try {
+                    let fixedArray = remaining;
+                    
+                    // 如果没有结束的 ]，添加它
+                    if (!fixedArray.includes(']')) {
+                        // 找到最后一个 }
+                        const lastBrace = fixedArray.lastIndexOf('}');
+                        if (lastBrace > -1) {
+                            fixedArray = fixedArray.substring(0, lastBrace + 1) + '\n]';
+                        }
+                    }
+                    
+                    // 移除尾随逗号
+                    fixedArray = fixedArray
+                        .replace(/,\s*}/g, '}')
+                        .replace(/,\s*]/g, ']');
+                    
+                    const parsed = JSON.parse(fixedArray);
+                    if (Array.isArray(parsed)) {
+                        parsed.forEach(item => {
+                            results.push({
+                                company_name: item.company_name || '',
+                                domain: item.website || item.domain || ''
+                            });
+                        });
+                        errors.push('处理了文件末尾的未完成数组');
+                    }
+                } catch (e) {
+                    errors.push(`无法解析文件末尾的内容: ${e.message}`);
+                }
+            }
+            
+            return { results, errors };
+        }
+
+        // 显示结果
+        function displayResults(results) {
+            const resultsDiv = document.getElementById('results');
+            const resultContent = document.getElementById('resultContent');
+            
+            resultsDiv.style.display = 'block';
+            
+            // 统计信息
+            const totalCompanies = results.length;
+            const successfulCompanies = results.filter(r => r.success).length;
+            const totalEmails = results.reduce((sum, r) => sum + (r.emails_found || 0), 0);
+            
+            let html = `
+                <div class="stats">
+                    <div class="stat-card">
+                        <div class="stat-number">${totalCompanies}</div>
+                        <div class="stat-label">总公司数</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${successfulCompanies}</div>
+                        <div class="stat-label">成功查找</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${totalEmails}</div>
+                        <div class="stat-label">找到邮箱</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${successfulCompanies > 0 ? Math.round(successfulCompanies/totalCompanies*100) : 0}%</div>
+                        <div class="stat-label">成功率</div>
+                    </div>
+                </div>
+            `;
+            
+            // 详细结果
+            results.forEach(result => {
+                html += `<div class="result-item">`;
+                
+                if (result.success) {
+                    html += `
+                        <div class="company-info">
+                            <div>
+                                <div class="company-name">${result.company_name}</div>
+                                <div class="domain">${result.domain}</div>
+                            </div>
+                            <div class="email-count">${result.emails_found} 个邮箱</div>
+                        </div>
+                    `;
+                    
+                    if (result.emails && result.emails.length > 0) {
+                        html += '<div class="email-list">';
+                        result.emails.forEach(email => {
+                            const confidenceClass = email.confidence >= 80 ? 'confidence-high' : 
+                                                  email.confidence >= 50 ? 'confidence-medium' : 'confidence-low';
+                            
+                            // 邮箱类型显示
+                            const typeDisplay = email.type === 'personal' ? '个人' : 
+                                              email.type === 'generic' ? '通用' : 
+                                              email.type === 'role' ? '角色' : '未知';
+                            const typeClass = email.type === 'personal' ? 'type-personal' : 
+                                            email.type === 'generic' ? 'type-generic' : 'type-unknown';
+                            
+                            html += `
+                                <div class="email-item">
+                                    <div>
+                                        <div class="email-address">${email.email}</div>
+                                        <div class="email-details">
+                                            <span class="email-type ${typeClass}">${typeDisplay}</span>
+                                            ${email.first_name || email.last_name ? `• ${email.first_name || ''} ${email.last_name || ''}` : ''}
+                                            ${email.ai_generated ? `<span style="color: #667eea; font-size: 0.8em;">(AI${email.is_guess ? '猜测' : '提取'})</span>` : ''}
+                                            ${email.position ? `• ${email.position}` : ''}
+                                            ${email.department ? `• ${email.department}` : ''}
+                                        </div>
+                                    </div>
+                                    <span class="confidence ${confidenceClass}">可信度: ${email.confidence}%</span>
+                                </div>
+                            `;
+                        });
+                        html += '</div>';
+                    }
+                    
+                    if (result.pattern) {
+                        html += `<div style="margin-top: 10px; color: #666;">邮箱模式: ${result.pattern}</div>`;
+                    }
+                } else {
+                    html += `
+                        <div class="company-info">
+                            <div>
+                                <div class="company-name">${result.company_name}</div>
+                                <div class="domain">${result.domain}</div>
+                            </div>
+                        </div>
+                        <div class="error">错误: ${result.error}</div>
+                    `;
+                }
+                
+                html += '</div>';
+            });
+            
+            resultContent.innerHTML = html;
+        }
+
+        // 下载CSV（保留这个函数用于兼容性）
+        function downloadCSV() {
+            downloadInstantlyCSV();
+        }
+
+        // 下载Instantly AI格式的CSV
+        async function downloadInstantlyCSV() {
+            if (currentResults.length === 0) return;
+            
+            try {
+                // 添加BOM以支持Excel正确显示中文（UTF-8编码）
+                const BOM = '\uFEFF';
+                let csv = BOM + 'Email,First Name,Last Name,Company Name,Phone,Job Title,Country,Email Type,AI Generated\n';
+                
+                for (const result of currentResults) {
+                    if (result.success && result.emails && result.emails.length > 0) {
+                        // 直接使用已经处理过的邮箱数据（在searchSingle或searchBatch时已经处理过）
+                        for (const email of result.emails) {
+                            // 处理First Name：如果是通用邮箱，使用公司名+Team
+                            let firstName = email.first_name || '';
+                            if ((email.type === 'generic' || email.type === 'role') && !firstName) {
+                                // 移除公司名称后缀
+                                const cleanCompanyName = cleanupCompanyName(result.company_name);
+                                firstName = cleanCompanyName ? `${cleanCompanyName} Team` : '';
+                            }
+                            
+                            // 按照Instantly AI要求的字段顺序，加上自定义字段
+                            const row = [
+                                email.email || '',                    // Email (必填)
+                                firstName,                            // First Name (处理后的)
+                                email.last_name || '',                // Last Name
+                                result.company_name || '',            // Company Name
+                                '',                                   // Phone (留空)
+                                email.position || '',                 // Job Title
+                                '',                                   // Country (留空)
+                                email.type || 'unknown',              // Email Type (自定义字段)
+                                email.ai_generated ? 'Yes' : 'No'     // AI Generated (标记是否为AI生成)
+                            ];
+                            
+                            // 转义处理
+                            const escapedRow = row.map(field => {
+                                const str = String(field);
+                                if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                                    return `"${str.replace(/"/g, '""')}"`;
+                                }
+                                return str;  // Instantly可能不需要所有字段都加引号
+                            });
+                            
+                            csv += escapedRow.join(',') + '\n';
+                        }
+                    }
+                    // 注意：Instantly格式中，没有邮箱的公司不包含在CSV中
+                }
+                
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+                downloadFile(csv, `instantly_contacts_${timestamp}.csv`, 'text/csv;charset=utf-8');
+                
+                // 提示用户
+                const enableGuessing = document.getElementById('enableNameGuessing').checked;
+                const openaiKey = localStorage.getItem('openaiApiKey');
+                
+                let alertMessage = '已下载Instantly AI格式的CSV文件\n\n注意：\n- 只包含有邮箱的联系人\n- Phone和Country字段为空，需要时请手动补充\n- Email Type字段标识邮箱类型（personal/generic）\n- 通用邮箱的First Name自动设为"公司名 Team"';
+                
+                if (enableGuessing && openaiKey) {
+                    alertMessage += '\n- AI Generated字段标识名字是否由AI生成';
+                }
+                
+                alert(alertMessage);
+                
+            } catch (error) {
+                console.error('Error downloading CSV:', error);
+                alert('下载失败：' + error.message);
+            }
+        }
+
+        // 下载完整格式的CSV（保留所有信息）
+        function downloadFullCSV() {
+            if (currentResults.length === 0) return;
+            
+            const BOM = '\uFEFF';
+            let csv = BOM + 'Company Name,Domain,Email,Email Type,First Name,Last Name,Position,Department,Confidence\n';
+            
+            currentResults.forEach(result => {
+                if (result.success && result.emails && result.emails.length > 0) {
+                    result.emails.forEach(email => {
+                        const row = [
+                            result.company_name || '',
+                            result.domain || '',
+                            email.email || '',
+                            email.type || 'unknown',
+                            email.first_name || '',
+                            email.last_name || '',
+                            email.position || '',
+                            email.department || '',
+                            email.confidence !== undefined ? email.confidence : ''
+                        ];
+                        
+                        const escapedRow = row.map(field => {
+                            const str = String(field);
+                            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                                return `"${str.replace(/"/g, '""')}"`;
+                            }
+                            return `"${str}"`;
+                        });
+                        
+                        csv += escapedRow.join(',') + '\n';
+                    });
+                } else {
+                    // 包含没有邮箱的公司
+                    csv += `"${result.company_name || ''}","${result.domain || ''}","","","","","","",""\n`;
+                }
+            });
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            downloadFile(csv, `hunter_full_results_${timestamp}.csv`, 'text/csv;charset=utf-8');
+        }
+
+        // 下载JSON
+        function downloadJSON() {
+            if (currentResults.length === 0) return;
+            
+            const json = JSON.stringify(currentResults, null, 2);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            downloadFile(json, `hunter_results_${timestamp}.json`, 'application/json');
+        }
+
+        // 下载文件
+        function downloadFile(content, filename, type) {
+            const blob = new Blob([content], { type: type });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // 清除结果
+        function clearResults() {
+            currentResults = [];
+            document.getElementById('results').style.display = 'none';
+            document.getElementById('singleDomain').value = '';
+            document.getElementById('companyName').value = '';
+            document.getElementById('batchInput').value = '';
+            document.getElementById('csvFile').value = '';
+        }
+
+        // 显示/隐藏加载动画
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        // 更新加载文字
+        function updateLoadingText(text) {
+            const loading = document.getElementById('loading');
+            const p = loading.querySelector('p');
+            if (p) {
+                p.textContent = text;
+            }
+        }
+
+        // 延迟函数
+        function delay(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        // API密钥管理功能
+        function toggleApiKeyVisibility() {
+            const apiKeyInput = document.getElementById('apiKey');
+            const toggleIcon = document.getElementById('toggleIcon');
+            
+            if (apiKeyInput.type === 'password') {
+                apiKeyInput.type = 'text';
+                toggleIcon.textContent = '🙈';
+            } else {
+                apiKeyInput.type = 'password';
+                toggleIcon.textContent = '👁️';
+            }
+        }
+
+        function saveApiKey() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            if (!apiKey) {
+                showApiStatus('请输入API密钥', 'error');
+                return;
+            }
+            
+            localStorage.setItem('hunterApiKey', apiKey);
+            showApiStatus('API密钥已保存', 'success');
+        }
+
+        function clearApiKey() {
+            if (confirm('确定要清除保存的API密钥吗？')) {
+                localStorage.removeItem('hunterApiKey');
+                document.getElementById('apiKey').value = '';
+                showApiStatus('API密钥已清除', 'success');
+            }
+        }
+
+        async function testApiKey() {
+            const apiKey = getApiKey();
+            if (!apiKey) return;
+            
+            showApiStatus('测试连接中...', 'testing');
+            
+            try {
+                // 使用一个测试域名来验证API密钥
+                const testDomain = 'google.com';
+                const url = `https://api.hunter.io/v2/domain-search?domain=${testDomain}&api_key=${apiKey}&limit=1`;
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // 获取账户信息
+                    const accountUrl = `https://api.hunter.io/v2/account?api_key=${apiKey}`;
+                    const accountResponse = await fetch(accountUrl);
+                    const accountData = await accountResponse.json();
+                    
+                    if (accountResponse.ok) {
+                        const remaining = accountData.data.requests.searches.available;
+                        const used = accountData.data.requests.searches.used;
+                        showApiStatus(`连接成功！剩余查询次数: ${remaining} (已使用: ${used})`, 'success');
+                    } else {
+                        showApiStatus('连接成功！', 'success');
+                    }
+                } else {
+                    if (response.status === 401) {
+                        showApiStatus('API密钥无效，请检查', 'error');
+                    } else {
+                        showApiStatus(`连接失败: ${data.errors?.[0]?.details || '未知错误'}`, 'error');
+                    }
+                }
+            } catch (error) {
+                showApiStatus('网络错误，请检查网络连接', 'error');
+            }
+        }
+
+        function showApiStatus(message, type) {
+            const statusElement = document.getElementById('apiStatus');
+            statusElement.textContent = message;
+            statusElement.className = `api-status ${type}`;
+            
+            // 3秒后自动清除非错误消息
+            if (type !== 'error') {
+                setTimeout(() => {
+                    if (statusElement.textContent === message) {
+                        statusElement.textContent = '';
+                        statusElement.className = 'api-status';
+                    }
+                }, 3000);
+            }
+        }
+
+        // 清理公司名称，移除常见后缀
+        function cleanupCompanyName(companyName) {
+            if (!companyName) return '';
+            
+            // 常见的公司后缀
+            const suffixes = [
+                // 英文后缀
+                ', LLC', ' LLC', ', INC', ' INC', ', Inc.', ' Inc.', ', Inc', ' Inc',
+                ', CORP', ' CORP', ', Corp.', ' Corp.', ', Corp', ' Corp',
+                ', LTD', ' LTD', ', Ltd.', ' Ltd.', ', Ltd', ' Ltd',
+                ', CO', ' CO', ', Co.', ' Co.', ', Co', ' Co',
+                ', COMPANY', ' COMPANY', ', Company', ' Company',
+                ', CORPORATION', ' CORPORATION', ', Corporation', ' Corporation',
+                ', INCORPORATED', ' INCORPORATED', ', Incorporated', ' Incorporated',
+                ', LIMITED', ' LIMITED', ', Limited', ' Limited',
+                ', LP', ' LP', ', L.P.', ' L.P.',
+                ', LLP', ' LLP', ', L.L.P.', ' L.L.P.',
+                ', PC', ' PC', ', P.C.', ' P.C.',
+                ', PA', ' PA', ', P.A.', ' P.A.',
+                ', PLLC', ' PLLC', ', P.L.L.C.', ' P.L.L.C.',
+                ', SERIES', ' SERIES', ', Series', ' Series',
+                // 中文后缀
+                '有限公司', '股份有限公司', '有限责任公司', '集团', '公司'
+            ];
+            
+            let cleanName = companyName.trim();
+            
+            // 移除后缀
+            for (const suffix of suffixes) {
+                if (cleanName.endsWith(suffix)) {
+                    cleanName = cleanName.substring(0, cleanName.length - suffix.length).trim();
+                    break; // 只移除一个后缀
+                }
+            }
+            
+            // 移除多余的标点符号
+            cleanName = cleanName.replace(/[,.]$/, '').trim();
+            
+            return cleanName;
+        }
+
+        // 防抖函数
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // ChatGPT API相关函数
+        function toggleOpenAIKeyVisibility() {
+            const openaiKeyInput = document.getElementById('openaiKey');
+            const toggleIcon = document.getElementById('toggleOpenAIIcon');
+            
+            if (openaiKeyInput.type === 'password') {
+                openaiKeyInput.type = 'text';
+                toggleIcon.textContent = '🙈';
+            } else {
+                openaiKeyInput.type = 'password';
+                toggleIcon.textContent = '👁️';
+            }
+        }
+
+        function saveOpenAIKey() {
+            const openaiKey = document.getElementById('openaiKey').value.trim();
+            if (!openaiKey) {
+                showOpenAIStatus('请输入OpenAI API密钥', 'error');
+                return;
+            }
+            
+            localStorage.setItem('openaiApiKey', openaiKey);
+            showOpenAIStatus('OpenAI API密钥已保存', 'success');
+        }
+
+        function clearOpenAIKey() {
+            if (confirm('确定要清除保存的OpenAI API密钥吗？')) {
+                localStorage.removeItem('openaiApiKey');
+                document.getElementById('openaiKey').value = '';
+                showOpenAIStatus('OpenAI API密钥已清除', 'success');
+            }
+        }
+
+        async function testOpenAIKey() {
+            const openaiKey = document.getElementById('openaiKey').value.trim();
+            if (!openaiKey) {
+                showOpenAIStatus('请输入OpenAI API密钥', 'error');
+                return;
+            }
+            
+            showOpenAIStatus('测试连接中...', 'testing');
+            
+            try {
+                const response = await fetch('https://api.openai.com/v1/models', {
+                    headers: {
+                        'Authorization': `Bearer ${openaiKey}`
+                    }
+                });
+                
+                if (response.ok) {
+                    showOpenAIStatus('连接成功！API密钥有效', 'success');
+                } else if (response.status === 401) {
+                    showOpenAIStatus('API密钥无效，请检查', 'error');
+                } else {
+                    showOpenAIStatus('连接失败，请检查网络', 'error');
+                }
+            } catch (error) {
+                showOpenAIStatus('网络错误，请检查网络连接', 'error');
+            }
+        }
+
+        function showOpenAIStatus(message, type) {
+            const statusElement = document.getElementById('openaiStatus');
+            statusElement.textContent = message;
+            statusElement.className = `api-status ${type}`;
+            
+            if (type !== 'error') {
+                setTimeout(() => {
+                    if (statusElement.textContent === message) {
+                        statusElement.textContent = '';
+                        statusElement.className = 'api-status';
+                    }
+                }, 3000);
+            }
+        }
+
+        // 使用ChatGPT猜测名字
+        async function guessNameFromEmail(email, companyName) {
+            // 检查缓存
+            const cacheKey = `${email}|${companyName || ''}`;
+            if (nameGuessCache.has(cacheKey)) {
+                return nameGuessCache.get(cacheKey);
+            }
+
+            const openaiKey = localStorage.getItem('openaiApiKey');
+            if (!openaiKey) {
+                return { first_name: '', last_name: '' };
+            }
+
+            try {
+                // 提取域名作为公司名称
+                const domain = email.split('@')[1];
+                const domainName = domain.split('.')[0].toUpperCase();
+                const companyDisplayName = companyName || domainName;
+                
+                const prompt = `你是一个数据清洗和邮件写作助理，请根据下方提供的邮箱、公司域名、公司名称等信息，智能生成邮件称呼，规则如下：
+
+1. 如果邮箱前缀像人名（如john.doe、ashley.carnes、john_smith），提取名字和姓氏。
+2. 如果邮箱前缀不含明显人名（如info、support、oquxi、motrp、evob等），或难以判断，使用公司名Team。
+3. 如果是单个首字母+姓氏（如acarnes、jsmith），保守处理，使用首字母大写。
+4. 不要随意推断人名，只在极为明显情况下才推测；遇到难以判断的邮箱，宁可采用团队称呼。
+
+数据：
+- 公司名: ${companyDisplayName}
+- 域名: ${domain}
+- 邮箱: ${email}
+
+请分析后返回JSON格式：
+{
+    "greeting": "Dear John Smith," 或 "Dear TLRA Team," 或 "Dear A. Carnes,",
+    "first_name": "John" 或 "TLRA Team" 或 "A.",
+    "last_name": "Smith" 或 "" 或 "Carnes",
+    "is_team": true/false
+}
+
+例子：
+- acarnes@tlra.com → {"greeting": "Dear A. Carnes,", "first_name": "A.", "last_name": "Carnes", "is_team": false}
+- oquxi@tlra.com → {"greeting": "Dear TLRA Team,", "first_name": "TLRA Team", "last_name": "", "is_team": true}
+- john.smith@tlra.com → {"greeting": "Dear John Smith,", "first_name": "John", "last_name": "Smith", "is_team": false}
+
+重要：直接返回纯JSON，不要包含markdown代码块标记。`;
+
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${openaiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4-turbo-preview',  // 使用GPT-4 Turbo
+                        messages: [
+                            {
+                                role: 'system',
+                                content: '你是一个智能的邮箱地址分析器。根据邮箱地址推测合理的名字和姓氏。对于首字母+姓氏的模式，猜测常见的名字。对于不清晰的模式如"oquxi"，识别为团队邮箱。始终返回有效的JSON格式。'
+                            },
+                            {
+                                role: 'user',
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0.2,  // 降低温度使输出更稳定
+                        max_tokens: 150
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const content = data.choices[0].message.content.trim();
+                    
+                    try {
+                        // 处理可能的markdown代码块包裹
+                        let cleanContent = content;
+                        if (content.includes('```json')) {
+                            cleanContent = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+                        } else if (content.includes('```')) {
+                            cleanContent = content.replace(/```\n?/g, '').trim();
+                        }
+                        
+                        const result = JSON.parse(cleanContent);
+                        
+                        // 缓存结果
+                        nameGuessCache.set(cacheKey, result);
+                        
+                        // 适配新的返回格式
+                        const adaptedResult = {
+                            first_name: result.first_name || '',
+                            last_name: result.last_name || '',
+                            is_guess: !result.is_team && result.first_name && result.first_name.length <= 2,
+                            is_team: result.is_team || false,
+                            greeting: result.greeting || ''
+                        };
+                        
+                        return adaptedResult;
+                    } catch (parseError) {
+                        console.error('Error parsing AI response:', parseError);
+                        console.error('Original content:', content);
+                        return { first_name: '', last_name: '', is_guess: false };
+                    }
+                }
+            } catch (error) {
+                console.error('Error guessing name:', error);
+            }
+
+            return { first_name: '', last_name: '', is_guess: false };
+        }
+
+        // 处理邮箱列表，添加AI猜测的名字
+        async function processEmailsWithAI(emails, companyName) {
+            const enableGuessing = document.getElementById('enableNameGuessing').checked;
+            if (!enableGuessing) {
+                return emails;
+            }
+
+            const openaiKey = localStorage.getItem('openaiApiKey');
+            if (!openaiKey) {
+                return emails;
+            }
+
+            // 计算需要处理的邮箱数量
+            const personalEmailsWithoutName = emails.filter(e => e.type === 'personal' && !e.first_name);
+            if (personalEmailsWithoutName.length === 0) {
+                return emails;
+            }
+
+            // 处理每个邮箱
+            const processedEmails = [];
+            let processedCount = 0;
+            
+            for (const email of emails) {
+                let processedEmail = { ...email };
+                
+                // 只处理personal类型且没有first_name的邮箱
+                if (email.type === 'personal' && !email.first_name) {
+                    processedCount++;
+                    updateLoadingText(`正在使用AI生成称呼 (${processedCount}/${personalEmailsWithoutName.length})...`);
+                    
+                    const guessedResult = await guessNameFromEmail(email.email, companyName);
+                    if (guessedResult && (guessedResult.first_name || guessedResult.last_name)) {
+                        // 如果AI猜测了名字，更新邮箱信息
+                        if (guessedResult.first_name) {
+                            processedEmail.first_name = guessedResult.first_name;
+                        }
+                        if (guessedResult.last_name && !email.last_name) {
+                            processedEmail.last_name = guessedResult.last_name;
+                        }
+                        processedEmail.ai_generated = true; // 标记为AI生成
+                        processedEmail.is_guess = guessedResult.is_guess; // 标记是否为猜测
+                    }
+                }
+                
+                processedEmails.push(processedEmail);
+            }
+
+            return processedEmails;
+        }
+
+        // 页面加载时的初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 保存API密钥到本地存储（输入时自动保存）
+            const apiKeyInput = document.getElementById('apiKey');
+            if (apiKeyInput) {
+                apiKeyInput.addEventListener('input', debounce(function() {
+                    const apiKey = this.value ? this.value.trim() : '';
+                    if (apiKey) {
+                        localStorage.setItem('hunterApiKey', apiKey);
+                    }
+                }, 1000));
+            }
+
+            // 恢复保存的API密钥
+            const savedApiKey = localStorage.getItem('hunterApiKey');
+            if (savedApiKey) {
+                document.getElementById('apiKey').value = savedApiKey;
+                showApiStatus('已加载保存的API密钥', 'success');
+                // 自动测试连接
+                setTimeout(() => {
+                    testApiKey();
+                }, 500);
+            }
+
+            // 恢复保存的OpenAI API密钥
+            const savedOpenAIKey = localStorage.getItem('openaiApiKey');
+            if (savedOpenAIKey) {
+                document.getElementById('openaiKey').value = savedOpenAIKey;
+                showOpenAIStatus('已加载保存的OpenAI API密钥', 'success');
+            }
+
+            // 恢复智能猜测名字的设置
+            const enableNameGuessing = localStorage.getItem('enableNameGuessing') === 'true';
+            document.getElementById('enableNameGuessing').checked = enableNameGuessing;
+
+            // 保存智能猜测名字的设置
+            document.getElementById('enableNameGuessing').addEventListener('change', function() {
+                localStorage.setItem('enableNameGuessing', this.checked);
+            });
+
+            // OpenAI密钥输入时自动保存
+            const openaiKeyInput = document.getElementById('openaiKey');
+            if (openaiKeyInput) {
+                openaiKeyInput.addEventListener('input', debounce(function() {
+                    const openaiKey = this.value ? this.value.trim() : '';
+                    if (openaiKey) {
+                        localStorage.setItem('openaiApiKey', openaiKey);
+                    }
+                }, 1000));
+            }
+        });
+    </script>
+</body>
+</html>

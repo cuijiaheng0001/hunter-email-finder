@@ -1,0 +1,32 @@
+# 操作系统文件
+.DS_Store
+Thumbs.db
+
+# 编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 日志文件
+*.log
+
+# 临时文件
+*.tmp
+*.temp
+
+# API密钥和敏感信息
+.env
+.env.local
+config.js
+secrets.json
+
+# 测试数据
+test-data/
+*.test.csv
+*.test.json
+
+# 下载的结果文件（可选，如果不想上传结果）
+# instantly_contacts_*.csv
+# hunter_results_*.json
+# hunter_full_results_*.csv
