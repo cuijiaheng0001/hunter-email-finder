@@ -15,7 +15,7 @@ CORS(app)  # 允许跨域请求
 # 静态文件路由
 @app.route('/')
 def index():
-    return send_from_directory('.', 'API TEST 2.html')
+    return send_from_directory(os.path.dirname(os.path.abspath(__file__)), 'API TEST 2.html')
 
 @app.route('/static/<path:path>')
 def send_static(path):

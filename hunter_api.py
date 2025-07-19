@@ -15,7 +15,9 @@ from typing import List, Dict, Any
 
 class HunterAPIProcessor:
     def __init__(self, api_key: str):
-        self.api_key = api_key
+        if not api_key or not isinstance(api_key, str):
+            raise ValueError("Invalid API key")
+        self.api_key = api_key.strip()
         self.base_url = "https://api.hunter.io/v2"
         self.results = []
         
@@ -199,7 +201,7 @@ class HunterAPIProcessor:
             f.write(f"成功数: {successful}\n")
             f.write(f"失败数: {total - successful}\n")
             f.write(f"找到的邮箱总数: {total_emails}\n")
-            f.write(f"成功率: {successful/total*100:.1f}%\n")
+            f.write(f"成功率: {successful/total*100:.1f}%\n" if total > 0 else "成功率: 0.0%\n")
             
             f.write(f"\n邮箱最多的公司:\n")
             sorted_results = sorted(
@@ -231,7 +233,7 @@ def get_api_key():
             with open(config_file, 'r') as f:
                 for line in f:
                     if line.startswith('HUNTER_API_KEY='):
-                        api_key = line.strip().split('=')[1].strip('"\'')
+                        api_key = line.strip().split('=', 1)[1].strip('"\'')
                         break
     
     return api_key
