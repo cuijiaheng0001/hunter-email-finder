@@ -525,7 +525,7 @@
                 <div class="form-group">
                     <label>
                         <input type="checkbox" id="enableNameGuessing" style="margin-right: 8px;">
-                        启用智能名字猜测功能（对于没有First Name的个人邮箱）
+                        启用智能名字猜测功能（对于没有First Name的个人和通用邮箱）
                     </label>
                     <small style="display: block; margin-top: 5px;">
                         启用后，AI会智能分析邮箱地址，提取或猜测合理的名字和姓氏
@@ -1566,9 +1566,11 @@ https://example3.com" class="form-control"></textarea>
                 return emails;
             }
 
-            // 计算需要处理的邮箱数量
-            const personalEmailsWithoutName = emails.filter(e => e.type === 'personal' && !e.first_name);
-            if (personalEmailsWithoutName.length === 0) {
+            // 计算需要处理的邮箱数量（包括personal和generic类型）
+            const emailsNeedingProcessing = emails.filter(e => 
+                (e.type === 'personal' || e.type === 'generic') && !e.first_name
+            );
+            if (emailsNeedingProcessing.length === 0) {
                 return emails;
             }
 
@@ -1579,10 +1581,10 @@ https://example3.com" class="form-control"></textarea>
             for (const email of emails) {
                 let processedEmail = { ...email };
                 
-                // 只处理personal类型且没有first_name的邮箱
-                if (email.type === 'personal' && !email.first_name) {
+                // 处理personal和generic类型且没有first_name的邮箱
+                if ((email.type === 'personal' || email.type === 'generic') && !email.first_name) {
                     processedCount++;
-                    updateLoadingText(`正在使用AI生成称呼 (${processedCount}/${personalEmailsWithoutName.length})...`);
+                    updateLoadingText(`正在使用AI生成称呼 (${processedCount}/${emailsNeedingProcessing.length})...`);
                     
                     const guessedResult = await guessNameFromEmail(email.email, companyName);
                     if (guessedResult && (guessedResult.first_name || guessedResult.last_name)) {
