@@ -135,6 +135,35 @@
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             border: 2px solid #667eea;
         }
+        
+        /* 展开/收起按钮样式 */
+        .collapse-toggle {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            color: #667eea;
+            font-weight: 600;
+            margin-top: 10px;
+            padding: 5px 10px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+            user-select: none;
+        }
+        
+        .collapse-toggle:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .collapse-arrow {
+            display: inline-block;
+            transition: transform 0.3s;
+            font-size: 0.8em;
+        }
+        
+        .collapse-arrow.expanded {
+            transform: rotate(90deg);
+        }
 
         .api-input-group {
             display: flex;
@@ -529,8 +558,11 @@
                         <a href="https://hunter.io/api-keys" target="_blank">管理密钥</a>
                     </small>
                 </div>
-                <div class="api-info">
-                    <p><strong>说明：</strong></p>
+                <div class="collapse-toggle" onclick="toggleApiInfo('hunter')">
+                    <span class="collapse-arrow" id="hunterArrow">▶</span>
+                    <span>说明</span>
+                </div>
+                <div class="api-info" id="hunterApiInfo" style="display: none;">
                     <ul>
                         <li>密钥将安全保存在浏览器本地存储中</li>
                         <li>关闭浏览器后密钥仍会保留</li>
@@ -564,15 +596,18 @@
                 </div>
                 <div class="form-group">
                     <label>
-                        <input type="checkbox" id="enableNameGuessing" style="margin-right: 8px;">
+                        <input type="checkbox" id="enableNameGuessing" checked style="margin-right: 8px;">
                         启用智能名字猜测功能（对于没有First Name的个人和通用邮箱）
                     </label>
                     <small style="display: block; margin-top: 5px;">
                         启用后，AI会智能分析邮箱地址，提取或猜测合理的名字和姓氏
                     </small>
                 </div>
-                <div class="api-info">
-                    <p><strong>功能说明：</strong></p>
+                <div class="collapse-toggle" onclick="toggleApiInfo('openai')">
+                    <span class="collapse-arrow" id="openaiArrow">▶</span>
+                    <span>功能说明</span>
+                </div>
+                <div class="api-info" id="openaiApiInfo" style="display: none;">
                     <ul>
                         <li>AI会智能分析邮箱地址，提取或猜测合理的名字</li>
                         <li>对于明确的名字（如john.smith@），AI会提取完整名字</li>
@@ -1399,15 +1434,7 @@ https://example3.com" class="form-control"></textarea>
             statusElement.textContent = message;
             statusElement.className = `api-status ${type}`;
             
-            // 3秒后自动清除非错误消息
-            if (type !== 'error') {
-                setTimeout(() => {
-                    if (statusElement.textContent === message) {
-                        statusElement.textContent = '';
-                        statusElement.className = 'api-status';
-                    }
-                }, 3000);
-            }
+            // 保持消息显示，不自动清除
         }
 
         // 清理公司名称，移除常见后缀
@@ -1530,14 +1557,7 @@ https://example3.com" class="form-control"></textarea>
             statusElement.textContent = message;
             statusElement.className = `api-status ${type}`;
             
-            if (type !== 'error') {
-                setTimeout(() => {
-                    if (statusElement.textContent === message) {
-                        statusElement.textContent = '';
-                        statusElement.className = 'api-status';
-                    }
-                }, 3000);
-            }
+            // 保持消息显示，不自动清除
         }
 
         // 使用ChatGPT猜测名字
@@ -1702,6 +1722,20 @@ https://example3.com" class="form-control"></textarea>
             return processedEmails;
         }
 
+        // 展开/收起功能
+        function toggleApiInfo(type) {
+            const infoDiv = document.getElementById(type + 'ApiInfo');
+            const arrow = document.getElementById(type + 'Arrow');
+            
+            if (infoDiv.style.display === 'none') {
+                infoDiv.style.display = 'block';
+                arrow.classList.add('expanded');
+            } else {
+                infoDiv.style.display = 'none';
+                arrow.classList.remove('expanded');
+            }
+        }
+        
         // 页面加载时的初始化
         document.addEventListener('DOMContentLoaded', function() {
             // 保存API密钥到本地存储（输入时自动保存）
@@ -1733,8 +1767,9 @@ https://example3.com" class="form-control"></textarea>
                 showOpenAIStatus('已加载保存的OpenAI API密钥', 'success');
             }
 
-            // 恢复智能猜测名字的设置
-            const enableNameGuessing = localStorage.getItem('enableNameGuessing') === 'true';
+            // 恢复智能猜测名字的设置（默认为true）
+            const savedEnableNameGuessing = localStorage.getItem('enableNameGuessing');
+            const enableNameGuessing = savedEnableNameGuessing === null ? true : savedEnableNameGuessing === 'true';
             document.getElementById('enableNameGuessing').checked = enableNameGuessing;
 
             // 保存智能猜测名字的设置
