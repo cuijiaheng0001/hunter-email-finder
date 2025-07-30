@@ -745,11 +745,21 @@ https://example3.com" class="form-control"></textarea>
                 </div>
                 <div class="form-group" style="margin-top: 15px;">
                     <label>
-                        <input type="checkbox" id="overrideGreetings" checked>
-                        覆盖已有的名字（重新生成所有称呼）
+                        <input type="checkbox" id="overrideGreetings">
+                        覆盖已有的名字（默认仅处理空白名字）
                     </label>
                 </div>
                 <button onclick="generateGreetingsOnly()" class="btn btn-primary">生成称呼</button>
+                
+                <!-- 生成结果显示 -->
+                <div id="greetingResults" style="display: none; margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 5px;">
+                    <h3 style="font-size: 16px; margin-bottom: 10px; color: #22543d;">✅ 称呼生成完成</h3>
+                    <p id="greetingResultText" style="margin-bottom: 15px;"></p>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="downloadGeneratedGreetings()" class="btn btn-primary">下载生成的文件</button>
+                        <button onclick="clearGreetingResults()" class="btn btn-secondary">清除结果</button>
+                    </div>
+                </div>
             </div>
 
             <!-- 结果显示区域 -->
@@ -1111,13 +1121,54 @@ https://example3.com" class="form-control"></textarea>
                         }
                     });
                     
-                    // 分批处理（每批20个）
-                    const batchSize = 20;
+                    // 智能计算批次策略
                     const emailArray = Array.from(emailsToProcess.values());
+                    const totalEmails = emailArray.length;
+                    let batchStrategy = [];
                     
-                    for (let i = 0; i < emailArray.length; i += batchSize) {
-                        const batch = emailArray.slice(i, i + batchSize);
-                        updateLoadingText(`正在处理AI称呼生成 (${Math.min(i + batchSize, emailArray.length)}/${emailArray.length})...`);
+                    if (totalEmails <= 30) {
+                        batchStrategy = [totalEmails];
+                    } else if (totalEmails <= 60) {
+                        batchStrategy = [30, totalEmails - 30];
+                    } else if (totalEmails <= 100) {
+                        const fullBatches = Math.floor(totalEmails / 30);
+                        const remainder = totalEmails % 30;
+                        batchStrategy = Array(fullBatches).fill(30);
+                        if (remainder > 0) {
+                            if (remainder < 10 && fullBatches > 0) {
+                                batchStrategy[batchStrategy.length - 1] += remainder;
+                            } else {
+                                batchStrategy.push(remainder);
+                            }
+                        }
+                    } else {
+                        const batchSize = 25;
+                        const fullBatches = Math.floor(totalEmails / batchSize);
+                        const remainder = totalEmails % batchSize;
+                        batchStrategy = Array(fullBatches).fill(batchSize);
+                        if (remainder > 0) {
+                            if (remainder < 10 && fullBatches > 0) {
+                                batchStrategy[batchStrategy.length - 1] += remainder;
+                            } else {
+                                batchStrategy.push(remainder);
+                            }
+                        }
+                    }
+                    
+                    const strategyText = batchStrategy.map((size, index) => 
+                        `第${index + 1}批: ${size}个`
+                    ).join(', ');
+                    
+                    updateLoadingText(`正在优化AI处理策略... 共${totalEmails}个邮箱将分${batchStrategy.length}批处理`);
+                    await delay(500);
+                    
+                    // 按策略批量处理
+                    let processedCount = 0;
+                    for (let batchIndex = 0; batchIndex < batchStrategy.length; batchIndex++) {
+                        const batchSize = batchStrategy[batchIndex];
+                        const batch = emailArray.slice(processedCount, processedCount + batchSize);
+                        
+                        updateLoadingText(`正在处理第 ${batchIndex + 1}/${batchStrategy.length} 批 AI称呼生成 (${processedCount + 1}-${processedCount + batch.length}/${totalEmails})...`);
                         
                         const aiResults = await batchProcessEmailsWithAI(batch);
                         
@@ -1139,6 +1190,13 @@ https://example3.com" class="form-control"></textarea>
                                 });
                             }
                         });
+                        
+                        processedCount += batch.length;
+                        
+                        // 批次间延迟
+                        if (batchIndex < batchStrategy.length - 1) {
+                            await delay(1000);
+                        }
                     }
                     
                     // 更新显示
@@ -2673,22 +2731,78 @@ ${emailList}
                     return;
                 }
                 
-                // 批量处理AI
-                updateLoadingText(`正在使用AI生成称呼 (0/${emailsToProcess.length})...`);
+                // 智能计算最优批次策略
+                const totalEmails = emailsToProcess.length;
+                let batchStrategy = [];
                 
-                const batchSize = 20;
+                if (totalEmails <= 30) {
+                    // 30个以内，一次处理完
+                    batchStrategy = [totalEmails];
+                } else if (totalEmails <= 60) {
+                    // 31-60个，分2批，每批30个
+                    batchStrategy = [30, totalEmails - 30];
+                } else if (totalEmails <= 100) {
+                    // 61-100个，前几批30个，最后一批处理剩余
+                    const fullBatches = Math.floor(totalEmails / 30);
+                    const remainder = totalEmails % 30;
+                    batchStrategy = Array(fullBatches).fill(30);
+                    if (remainder > 0) {
+                        if (remainder < 10 && fullBatches > 0) {
+                            // 如果剩余少于10个，合并到上一批
+                            batchStrategy[batchStrategy.length - 1] += remainder;
+                        } else {
+                            batchStrategy.push(remainder);
+                        }
+                    }
+                } else {
+                    // 100个以上，每批25个，避免单批过大
+                    const batchSize = 25;
+                    const fullBatches = Math.floor(totalEmails / batchSize);
+                    const remainder = totalEmails % batchSize;
+                    batchStrategy = Array(fullBatches).fill(batchSize);
+                    if (remainder > 0) {
+                        if (remainder < 10 && fullBatches > 0) {
+                            batchStrategy[batchStrategy.length - 1] += remainder;
+                        } else {
+                            batchStrategy.push(remainder);
+                        }
+                    }
+                }
+                
+                // 显示批次策略
+                const strategyText = batchStrategy.map((size, index) => 
+                    `第${index + 1}批: ${size}个`
+                ).join(', ');
+                
+                AppLogger.info('AI批次处理策略', {
+                    totalEmails,
+                    strategy: batchStrategy,
+                    strategyText
+                });
+                
+                updateLoadingText(`正在分析处理策略... 共${totalEmails}个邮箱将分${batchStrategy.length}批处理 (${strategyText})`);
+                await delay(1000);
+                
+                // 按照策略批量处理
                 const aiResults = new Map();
+                let processedCount = 0;
                 
-                for (let i = 0; i < emailsToProcess.length; i += batchSize) {
-                    const batch = emailsToProcess.slice(i, i + batchSize);
-                    updateLoadingText(`正在使用AI生成称呼 (${Math.min(i + batchSize, emailsToProcess.length)}/${emailsToProcess.length})...`);
+                for (let batchIndex = 0; batchIndex < batchStrategy.length; batchIndex++) {
+                    const batchSize = batchStrategy[batchIndex];
+                    const batch = emailsToProcess.slice(processedCount, processedCount + batchSize);
+                    
+                    updateLoadingText(`正在处理第 ${batchIndex + 1}/${batchStrategy.length} 批 (${processedCount + 1}-${processedCount + batch.length}/${totalEmails})...`);
                     
                     const batchResults = await batchProcessEmailsWithAI(batch);
                     batchResults.forEach((result, email) => {
                         aiResults.set(email, result);
                     });
                     
-                    if (i + batchSize < emailsToProcess.length) {
+                    processedCount += batch.length;
+                    
+                    // 批次间延迟，避免API限流
+                    if (batchIndex < batchStrategy.length - 1) {
+                        updateLoadingText(`第 ${batchIndex + 1} 批完成，等待1秒后继续...`);
                         await delay(1000);
                     }
                 }
@@ -2744,12 +2858,20 @@ ${emailList}
                     }).join(',') + '\n';
                 });
                 
-                // 下载文件
+                // 保存生成的CSV到全局变量
                 const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
                 const originalName = file.name.replace('.csv', '');
-                downloadFile(newCsv, `${originalName}_with_greetings_${timestamp}.csv`, 'text/csv;charset=utf-8');
+                const fileName = `${originalName}_with_greetings_${timestamp}.csv`;
                 
-                alert(`成功生成称呼！\n处理了 ${emailsToProcess.length} 个邮箱\n更新了 ${updatedCount} 个名字`);
+                window.generatedGreetingCsv = {
+                    content: newCsv,
+                    fileName: fileName,
+                    processedCount: emailsToProcess.length,
+                    updatedCount: updatedCount
+                };
+                
+                // 显示结果和下载按钮
+                showGreetingResults();
                 
                 AppLogger.info('CSV称呼生成完成', {
                     processed: emailsToProcess.length,
@@ -2762,6 +2884,49 @@ ${emailList}
             } finally {
                 showLoading(false);
             }
+        }
+        
+        // 显示称呼生成结果
+        function showGreetingResults() {
+            const results = window.generatedGreetingCsv;
+            if (!results) return;
+            
+            const resultDiv = document.getElementById('greetingResults');
+            const resultText = document.getElementById('greetingResultText');
+            
+            resultText.innerHTML = `
+                <strong>处理完成！</strong><br>
+                • 处理了 ${results.processedCount} 个邮箱<br>
+                • 更新了 ${results.updatedCount} 个名字<br>
+                • 文件名：${results.fileName}
+            `;
+            
+            resultDiv.style.display = 'block';
+            
+            // 滚动到结果区域
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        // 下载生成的称呼文件
+        function downloadGeneratedGreetings() {
+            const results = window.generatedGreetingCsv;
+            if (!results) {
+                alert('没有可下载的文件');
+                return;
+            }
+            
+            downloadFile(results.content, results.fileName, 'text/csv;charset=utf-8');
+            
+            AppLogger.info('下载称呼文件', { fileName: results.fileName });
+        }
+        
+        // 清除称呼生成结果
+        function clearGreetingResults() {
+            document.getElementById('greetingResults').style.display = 'none';
+            document.getElementById('greetingCsvFile').value = '';
+            document.getElementById('csvPreview').style.display = 'none';
+            window.generatedGreetingCsv = null;
+            window.csvParseInfo = null;
         }
         
         // 全局错误捕获
