@@ -619,6 +619,59 @@
                 </div>
             </div>
 
+            <!-- Claude API设置 -->
+            <div class="card api-card">
+                <h2>🤖 Claude API 设置（可选）</h2>
+                <div class="form-group">
+                    <label for="claudeKey">Claude API 密钥:</label>
+                    <div class="api-input-group">
+                        <input type="password" id="claudeKey" placeholder="输入你的 Claude API 密钥" class="form-control">
+                        <button onclick="toggleClaudeKeyVisibility()" class="btn-icon" title="显示/隐藏密钥">
+                            <span id="toggleClaudeIcon">👁️</span>
+                        </button>
+                    </div>
+                    <div class="api-actions">
+                        <button onclick="saveClaudeKey()" class="btn btn-small btn-primary">保存密钥</button>
+                        <button onclick="clearClaudeKey()" class="btn btn-small btn-secondary">清除密钥</button>
+                        <button onclick="testClaudeKey()" class="btn btn-small btn-info">测试连接</button>
+                    </div>
+                    <small>
+                        <span id="claudeStatus" class="api-status"></span>
+                        <br>
+                        获取密钥: <a href="https://console.anthropic.com/api" target="_blank">Anthropic Console</a>
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>选择AI提供商:</label>
+                    <div style="margin-top: 10px;">
+                        <label style="margin-right: 20px;">
+                            <input type="radio" name="aiProvider" value="openai" id="useOpenAI" style="margin-right: 5px;">
+                            使用 OpenAI (GPT-4)
+                        </label>
+                        <label>
+                            <input type="radio" name="aiProvider" value="claude" id="useClaude" checked style="margin-right: 5px;">
+                            使用 Claude (Haiku 3.5)
+                        </label>
+                    </div>
+                    <small style="display: block; margin-top: 10px;">
+                        选择用于智能名字猜测的AI服务。两者效果相似，可根据您的密钥情况选择。
+                    </small>
+                </div>
+                <div class="collapse-toggle" onclick="toggleApiInfo('claude')">
+                    <span class="collapse-arrow" id="claudeArrow">▶</span>
+                    <span>功能说明</span>
+                </div>
+                <div class="api-info" id="claudeApiInfo" style="display: none;">
+                    <ul>
+                        <li>Claude AI 提供与 OpenAI 相似的智能分析功能</li>
+                        <li>使用 Claude 3.5 Haiku 模型，速度快、成本极低</li>
+                        <li>对于邮箱地址的名字提取和分析效果良好</li>
+                        <li>API 调用费用比 GPT-4 和 Sonnet 都要低很多</li>
+                        <li>支持批量处理，提高效率</li>
+                    </ul>
+                </div>
+            </div>
+
             <!-- 单个域名查找 -->
             <div class="card">
                 <h2>单个域名查找</h2>
@@ -726,16 +779,57 @@ https://example3.com" class="form-control"></textarea>
             
             try {
                 const result = await searchDomain(apiKey, domain, companyName, limit);
+                currentResults = [result];
                 
-                // 如果启用了AI功能，处理邮箱
+                // 如果启用了AI功能，批量处理邮箱
                 const enableGuessing = document.getElementById('enableNameGuessing').checked;
+                const useOpenAI = document.getElementById('useOpenAI').checked;
                 const openaiKey = localStorage.getItem('openaiApiKey');
-                if (enableGuessing && openaiKey && result.success && result.emails) {
+                const claudeKey = localStorage.getItem('claudeApiKey');
+                const hasValidKey = useOpenAI ? openaiKey : claudeKey;
+                
+                if (enableGuessing && hasValidKey && result.success && result.emails) {
                     updateLoadingText('正在使用AI智能生成称呼...');
-                    result.emails = await processEmailsWithAI(result.emails, result.company_name);
+                    
+                    // 收集需要处理的邮箱
+                    const emailsToProcess = [];
+                    result.emails.forEach((email, index) => {
+                        if ((email.type === 'personal' || email.type === 'generic') && !email.first_name) {
+                            emailsToProcess.push({
+                                email: email.email,
+                                companyName: result.company_name,
+                                index: index
+                            });
+                        }
+                    });
+                    
+                    if (emailsToProcess.length > 0) {
+                        // 批量处理
+                        const batch = emailsToProcess.map(item => ({
+                            email: item.email,
+                            companyName: item.companyName
+                        }));
+                        
+                        const aiResults = await batchProcessEmailsWithAI(batch);
+                        
+                        // 应用AI结果
+                        emailsToProcess.forEach(item => {
+                            const aiResult = aiResults.get(item.email);
+                            if (aiResult) {
+                                const email = result.emails[item.index];
+                                if (aiResult.first_name) {
+                                    email.first_name = aiResult.first_name;
+                                }
+                                if (aiResult.last_name && !email.last_name) {
+                                    email.last_name = aiResult.last_name;
+                                }
+                                email.ai_generated = true;
+                                email.is_guess = aiResult.is_guess;
+                            }
+                        });
+                    }
                 }
                 
-                currentResults = [result];
                 displayResults(currentResults);
             } catch (error) {
                 alert('查找失败: ' + error.message);
@@ -787,21 +881,13 @@ https://example3.com" class="form-control"></textarea>
             currentResults = [];
             
             try {
-                // 批量查找，每个域名之间延迟1秒
+                // 第一阶段：批量查找所有域名
                 for (let i = 0; i < domains.length; i++) {
                     const item = domains[i];
                     updateLoadingText(`正在查找 ${i + 1}/${domains.length}: ${item.domain}`);
                     
                     try {
                         const result = await searchDomain(apiKey, item.domain, item.company_name);
-                        
-                        // 如果启用了AI功能，处理邮箱
-                        const enableGuessing = document.getElementById('enableNameGuessing').checked;
-                        const openaiKey = localStorage.getItem('openaiApiKey');
-                        if (enableGuessing && openaiKey && result.success && result.emails) {
-                            result.emails = await processEmailsWithAI(result.emails, result.company_name);
-                        }
-                        
                         currentResults.push(result);
                         displayResults(currentResults);
                     } catch (error) {
@@ -820,6 +906,74 @@ https://example3.com" class="form-control"></textarea>
                         await delay(1000);
                     }
                 }
+                
+                // 第二阶段：批量处理AI名字猜测（如果启用）
+                const enableGuessing = document.getElementById('enableNameGuessing').checked;
+                const useOpenAI = document.getElementById('useOpenAI').checked;
+                const openaiKey = localStorage.getItem('openaiApiKey');
+                const claudeKey = localStorage.getItem('claudeApiKey');
+                const hasValidKey = useOpenAI ? openaiKey : claudeKey;
+                
+                if (enableGuessing && hasValidKey) {
+                    updateLoadingText('正在使用AI智能生成称呼...');
+                    
+                    // 收集所有需要处理的邮箱，同时去重
+                    const emailsToProcess = new Map();
+                    const emailToResults = new Map(); // 记录邮箱对应的结果索引
+                    
+                    currentResults.forEach((result, resultIndex) => {
+                        if (result.success && result.emails) {
+                            result.emails.forEach((email, emailIndex) => {
+                                if ((email.type === 'personal' || email.type === 'generic') && !email.first_name) {
+                                    const key = email.email;
+                                    if (!emailsToProcess.has(key)) {
+                                        emailsToProcess.set(key, {
+                                            email: email.email,
+                                            companyName: result.company_name
+                                        });
+                                        emailToResults.set(key, []);
+                                    }
+                                    // 记录这个邮箱在哪些结果中出现
+                                    emailToResults.get(key).push({ resultIndex, emailIndex });
+                                }
+                            });
+                        }
+                    });
+                    
+                    // 分批处理（每批20个）
+                    const batchSize = 20;
+                    const emailArray = Array.from(emailsToProcess.values());
+                    
+                    for (let i = 0; i < emailArray.length; i += batchSize) {
+                        const batch = emailArray.slice(i, i + batchSize);
+                        updateLoadingText(`正在处理AI称呼生成 (${Math.min(i + batchSize, emailArray.length)}/${emailArray.length})...`);
+                        
+                        const aiResults = await batchProcessEmailsWithAI(batch);
+                        
+                        // 将AI结果应用回原始数据
+                        batch.forEach(item => {
+                            const aiResult = aiResults.get(item.email);
+                            if (aiResult) {
+                                const positions = emailToResults.get(item.email);
+                                positions.forEach(pos => {
+                                    const email = currentResults[pos.resultIndex].emails[pos.emailIndex];
+                                    if (aiResult.first_name) {
+                                        email.first_name = aiResult.first_name;
+                                    }
+                                    if (aiResult.last_name && !email.last_name) {
+                                        email.last_name = aiResult.last_name;
+                                    }
+                                    email.ai_generated = true;
+                                    email.is_guess = aiResult.is_guess;
+                                });
+                            }
+                        });
+                    }
+                    
+                    // 更新显示
+                    displayResults(currentResults);
+                }
+                
             } finally {
                 showLoading(false);
             }
@@ -1491,6 +1645,86 @@ https://example3.com" class="form-control"></textarea>
             };
         }
 
+        // Claude API相关函数
+        function toggleClaudeKeyVisibility() {
+            const claudeKeyInput = document.getElementById('claudeKey');
+            const toggleIcon = document.getElementById('toggleClaudeIcon');
+            
+            if (claudeKeyInput.type === 'password') {
+                claudeKeyInput.type = 'text';
+                toggleIcon.textContent = '🙈';
+            } else {
+                claudeKeyInput.type = 'password';
+                toggleIcon.textContent = '👁️';
+            }
+        }
+
+        function saveClaudeKey() {
+            const claudeKey = document.getElementById('claudeKey').value.trim();
+            if (!claudeKey) {
+                showClaudeStatus('请输入Claude API密钥', 'error');
+                return;
+            }
+            
+            localStorage.setItem('claudeApiKey', claudeKey);
+            showClaudeStatus('Claude API密钥已保存', 'success');
+        }
+
+        function clearClaudeKey() {
+            if (confirm('确定要清除保存的Claude API密钥吗？')) {
+                localStorage.removeItem('claudeApiKey');
+                document.getElementById('claudeKey').value = '';
+                showClaudeStatus('Claude API密钥已清除', 'success');
+            }
+        }
+
+        async function testClaudeKey() {
+            const claudeKey = document.getElementById('claudeKey').value.trim();
+            if (!claudeKey) {
+                showClaudeStatus('请输入Claude API密钥', 'error');
+                return;
+            }
+            
+            showClaudeStatus('测试连接中...', 'testing');
+            
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': claudeKey,
+                        'anthropic-version': '2023-06-01',
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-3-5-haiku-20241022',
+                        max_tokens: 10,
+                        messages: [{
+                            role: 'user',
+                            content: 'Hi'
+                        }]
+                    })
+                });
+                
+                if (response.ok) {
+                    showClaudeStatus('连接成功！API密钥有效', 'success');
+                } else if (response.status === 401) {
+                    showClaudeStatus('API密钥无效，请检查', 'error');
+                } else {
+                    showClaudeStatus('连接失败，请检查网络', 'error');
+                }
+            } catch (error) {
+                showClaudeStatus('网络错误，请检查网络连接', 'error');
+            }
+        }
+
+        function showClaudeStatus(message, type) {
+            const statusElement = document.getElementById('claudeStatus');
+            statusElement.textContent = message;
+            statusElement.className = `api-status ${type}`;
+            
+            // 保持消息显示，不自动清除
+        }
+
         // ChatGPT API相关函数
         function toggleOpenAIKeyVisibility() {
             const openaiKeyInput = document.getElementById('openaiKey');
@@ -1560,6 +1794,220 @@ https://example3.com" class="form-control"></textarea>
             // 保持消息显示，不自动清除
         }
 
+        // 批量处理邮箱名字猜测
+        async function batchProcessEmailsWithAI(emailBatch) {
+            if (emailBatch.length === 0) {
+                return new Map();
+            }
+            
+            // 检查使用哪个AI服务
+            const useOpenAI = document.getElementById('useOpenAI').checked;
+            
+            if (useOpenAI) {
+                return batchProcessWithOpenAI(emailBatch);
+            } else {
+                return batchProcessWithClaude(emailBatch);
+            }
+        }
+        
+        // 使用OpenAI批量处理
+        async function batchProcessWithOpenAI(emailBatch) {
+            const openaiKey = localStorage.getItem('openaiApiKey');
+            if (!openaiKey) {
+                return new Map();
+            }
+
+            try {
+                // 构建批量处理的prompt
+                const emailList = emailBatch.map(item => {
+                    const domain = item.email.split('@')[1];
+                    const domainName = domain.split('.')[0].toUpperCase();
+                    const companyDisplayName = item.companyName || domainName;
+                    return `${item.email} (公司: ${companyDisplayName})`;
+                }).join('\n');
+
+                const prompt = `你是一个严格的邮箱地址分析器。请分析以下邮箱列表，为每个邮箱生成合适的称呼。
+
+重要规则：
+1. 只能从邮箱地址本身提取信息，绝不能凭空猜测或添加不存在的姓氏
+2. 如果邮箱包含明显的名字和姓氏（如john.doe、ashley.carnes），才提取完整的名字和姓氏
+3. 如果邮箱只有名字（如john@），只使用名字，姓氏留空
+4. 如果是单个首字母+姓氏（如acarnes），使用首字母大写（如A. Carnes）
+5. 如果邮箱前缀不像人名（如info、support），使用"公司名 Team"
+
+邮箱列表：
+${emailList}
+
+请返回JSON数组格式，每个邮箱对应一个对象：
+[
+  {
+    "email": "原始邮箱",
+    "first_name": "名字或团队名",
+    "last_name": "姓氏（如果有）",
+    "is_team": true/false,
+    "extraction_type": "extracted/partial/team"
+  }
+]
+
+重要：直接返回纯JSON数组，不要包含markdown代码块标记。`;
+
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${openaiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'gpt-4-turbo-preview',
+                        messages: [
+                            {
+                                role: 'system',
+                                content: '你是一个严格的邮箱地址分析器。你只能从邮箱地址中提取实际存在的信息，绝不能凭空创造或猜测不存在的内容。始终返回有效的JSON数组格式。'
+                            },
+                            {
+                                role: 'user',
+                                content: prompt
+                            }
+                        ],
+                        temperature: 0.2,
+                        max_tokens: 1000
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const content = data.choices[0].message.content.trim();
+                    
+                    try {
+                        // 处理可能的markdown代码块包裹
+                        let cleanContent = content;
+                        if (content.includes('```')) {
+                            cleanContent = content.replace(/```json?\n?/g, '').replace(/```\n?/g, '').trim();
+                        }
+                        
+                        const results = JSON.parse(cleanContent);
+                        
+                        // 将结果转换为Map便于查找
+                        const resultMap = new Map();
+                        results.forEach(result => {
+                            resultMap.set(result.email, {
+                                first_name: result.first_name || '',
+                                last_name: result.last_name || '',
+                                is_guess: result.extraction_type === 'partial',
+                                is_team: result.is_team || false
+                            });
+                        });
+                        
+                        return resultMap;
+                    } catch (parseError) {
+                        console.error('Error parsing batch AI response:', parseError);
+                        return new Map();
+                    }
+                }
+            } catch (error) {
+                console.error('Error in batch processing:', error);
+            }
+
+            return new Map();
+        }
+        
+        // 使用Claude批量处理
+        async function batchProcessWithClaude(emailBatch) {
+            const claudeKey = localStorage.getItem('claudeApiKey');
+            if (!claudeKey) {
+                return new Map();
+            }
+
+            try {
+                // 构建批量处理的prompt
+                const emailList = emailBatch.map(item => {
+                    const domain = item.email.split('@')[1];
+                    const domainName = domain.split('.')[0].toUpperCase();
+                    const companyDisplayName = item.companyName || domainName;
+                    return `${item.email} (公司: ${companyDisplayName})`;
+                }).join('\n');
+
+                const prompt = `你是一个严格的邮箱地址分析器。请分析以下邮箱列表，为每个邮箱生成合适的称呼。
+
+重要规则：
+1. 只能从邮箱地址本身提取信息，绝不能凭空猜测或添加不存在的姓氏
+2. 如果邮箱包含明显的名字和姓氏（如john.doe、ashley.carnes），才提取完整的名字和姓氏
+3. 如果邮箱只有名字（如john@），只使用名字，姓氏留空
+4. 如果是单个首字母+姓氏（如acarnes），使用首字母大写（如A. Carnes）
+5. 如果邮箱前缀不像人名（如info、support），使用"公司名 Team"
+
+邮箱列表：
+${emailList}
+
+请返回JSON数组格式，每个邮箱对应一个对象：
+[
+  {
+    "email": "原始邮箱",
+    "first_name": "名字或团队名",
+    "last_name": "姓氏（如果有）",
+    "is_team": true/false,
+    "extraction_type": "extracted/partial/team"
+  }
+]
+
+重要：直接返回纯JSON数组，不要包含markdown代码块标记。`;
+
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'x-api-key': claudeKey,
+                        'anthropic-version': '2023-06-01',
+                        'content-type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-3-5-haiku-20241022',
+                        max_tokens: 2500,
+                        temperature: 0.2,
+                        system: '你是一个严格的邮箱地址分析器。你只能从邮箱地址中提取实际存在的信息，绝不能凭空创造或猜测不存在的内容。始终返回有效的JSON数组格式。',
+                        messages: [{
+                            role: 'user',
+                            content: prompt
+                        }]
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const content = data.content[0].text.trim();
+                    
+                    try {
+                        // 处理可能的markdown代码块包裹
+                        let cleanContent = content;
+                        if (content.includes('```')) {
+                            cleanContent = content.replace(/```json?\n?/g, '').replace(/```\n?/g, '').trim();
+                        }
+                        
+                        const results = JSON.parse(cleanContent);
+                        
+                        // 将结果转换为Map便于查找
+                        const resultMap = new Map();
+                        results.forEach(result => {
+                            resultMap.set(result.email, {
+                                first_name: result.first_name || '',
+                                last_name: result.last_name || '',
+                                is_guess: result.extraction_type === 'partial',
+                                is_team: result.is_team || false
+                            });
+                        });
+                        
+                        return resultMap;
+                    } catch (parseError) {
+                        console.error('Error parsing Claude response:', parseError);
+                        return new Map();
+                    }
+                }
+            } catch (error) {
+                console.error('Error in Claude batch processing:', error);
+            }
+
+            return new Map();
+        }
+        
         // 使用ChatGPT猜测名字
         async function guessNameFromEmail(email, companyName) {
             // 检查缓存
@@ -1579,30 +2027,33 @@ https://example3.com" class="form-control"></textarea>
                 const domainName = domain.split('.')[0].toUpperCase();
                 const companyDisplayName = companyName || domainName;
                 
-                const prompt = `你是一个数据清洗和邮件写作助理，请根据下方提供的邮箱、公司域名、公司名称等信息，智能生成邮件称呼，规则如下：
+                const prompt = `你是一个数据清洗和邮件写作助理，请根据下方提供的邮箱地址，智能提取或生成邮件称呼。
 
-1. 如果邮箱前缀像人名（如john.doe、ashley.carnes、john_smith），提取名字和姓氏。
-2. 如果邮箱前缀不含明显人名（如info、support、oquxi、motrp、evob等），或难以判断，使用公司名Team。
-3. 如果是单个首字母+姓氏（如acarnes、jsmith），保守处理，使用首字母大写。
-4. 不要随意推断人名，只在极为明显情况下才推测；遇到难以判断的邮箱，宁可采用团队称呼。
+重要规则：
+1. 只能从邮箱地址本身提取信息，绝不能凭空猜测或添加不存在的姓氏
+2. 如果邮箱包含明显的名字和姓氏（如john.doe、ashley.carnes、john_smith），才提取完整的名字和姓氏
+3. 如果邮箱只有名字（如john@、mary@），只使用名字，姓氏留空
+4. 如果是单个首字母+姓氏（如acarnes、jsmith），使用首字母大写（如A. Carnes）
+5. 如果邮箱前缀不像人名（如info、support、oquxi、sales等），使用"公司名 Team"
 
 数据：
 - 公司名: ${companyDisplayName}
-- 域名: ${domain}
 - 邮箱: ${email}
 
 请分析后返回JSON格式：
 {
-    "greeting": "Dear John Smith," 或 "Dear TLRA Team," 或 "Dear A. Carnes,",
-    "first_name": "John" 或 "TLRA Team" 或 "A.",
-    "last_name": "Smith" 或 "" 或 "Carnes",
-    "is_team": true/false
+    "greeting": "称呼",
+    "first_name": "名字或团队名",
+    "last_name": "姓氏（如果有）",
+    "is_team": true/false,
+    "extraction_type": "extracted/partial/team"
 }
 
 例子：
-- acarnes@tlra.com → {"greeting": "Dear A. Carnes,", "first_name": "A.", "last_name": "Carnes", "is_team": false}
-- oquxi@tlra.com → {"greeting": "Dear TLRA Team,", "first_name": "TLRA Team", "last_name": "", "is_team": true}
-- john.smith@tlra.com → {"greeting": "Dear John Smith,", "first_name": "John", "last_name": "Smith", "is_team": false}
+- john@company.com → {"greeting": "Dear John,", "first_name": "John", "last_name": "", "is_team": false, "extraction_type": "partial"}
+- john.smith@company.com → {"greeting": "Dear John Smith,", "first_name": "John", "last_name": "Smith", "is_team": false, "extraction_type": "extracted"}
+- acarnes@company.com → {"greeting": "Dear A. Carnes,", "first_name": "A.", "last_name": "Carnes", "is_team": false, "extraction_type": "extracted"}
+- info@company.com → {"greeting": "Dear ${companyDisplayName} Team,", "first_name": "${companyDisplayName} Team", "last_name": "", "is_team": true, "extraction_type": "team"}
 
 重要：直接返回纯JSON，不要包含markdown代码块标记。`;
 
@@ -1617,7 +2068,7 @@ https://example3.com" class="form-control"></textarea>
                         messages: [
                             {
                                 role: 'system',
-                                content: '你是一个智能的邮箱地址分析器。根据邮箱地址推测合理的名字和姓氏。对于首字母+姓氏的模式，猜测常见的名字。对于不清晰的模式如"oquxi"，识别为团队邮箱。始终返回有效的JSON格式。'
+                                content: '你是一个严格的邮箱地址分析器。你只能从邮箱地址中提取实际存在的信息，绝不能凭空创造或猜测不存在的内容。如果邮箱只有名字（如john@），就只返回名字。始终返回有效的JSON格式。'
                             },
                             {
                                 role: 'user',
@@ -1766,6 +2217,25 @@ https://example3.com" class="form-control"></textarea>
                 document.getElementById('openaiKey').value = savedOpenAIKey;
                 showOpenAIStatus('已加载保存的OpenAI API密钥', 'success');
             }
+            
+            // 恢复保存的Claude API密钥
+            const savedClaudeKey = localStorage.getItem('claudeApiKey');
+            if (savedClaudeKey) {
+                document.getElementById('claudeKey').value = savedClaudeKey;
+                showClaudeStatus('已加载保存的Claude API密钥', 'success');
+            }
+            
+            // 恢复AI提供商选择（默认使用Claude）
+            const savedAIProvider = localStorage.getItem('aiProvider');
+            if (savedAIProvider === 'openai') {
+                document.getElementById('useOpenAI').checked = true;
+            } else {
+                // 默认使用Claude
+                document.getElementById('useClaude').checked = true;
+                if (!savedAIProvider) {
+                    localStorage.setItem('aiProvider', 'claude');
+                }
+            }
 
             // 恢复智能猜测名字的设置（默认为true）
             const savedEnableNameGuessing = localStorage.getItem('enableNameGuessing');
@@ -1787,6 +2257,30 @@ https://example3.com" class="form-control"></textarea>
                     }
                 }, 1000));
             }
+            
+            // Claude密钥输入时自动保存
+            const claudeKeyInput = document.getElementById('claudeKey');
+            if (claudeKeyInput) {
+                claudeKeyInput.addEventListener('input', debounce(function() {
+                    const claudeKey = this.value ? this.value.trim() : '';
+                    if (claudeKey) {
+                        localStorage.setItem('claudeApiKey', claudeKey);
+                    }
+                }, 1000));
+            }
+            
+            // 保存AI提供商选择
+            document.getElementById('useOpenAI').addEventListener('change', function() {
+                if (this.checked) {
+                    localStorage.setItem('aiProvider', 'openai');
+                }
+            });
+            
+            document.getElementById('useClaude').addEventListener('change', function() {
+                if (this.checked) {
+                    localStorage.setItem('aiProvider', 'claude');
+                }
+            });
         });
     </script>
 </body>
