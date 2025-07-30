@@ -525,9 +525,59 @@
             color: #666;
             font-size: 0.9em;
         }
+        
+        /* 滚动按钮 */
+        .scroll-buttons {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .scroll-btn {
+            width: 45px;
+            height: 45px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            opacity: 0.8;
+        }
+        
+        .scroll-btn:hover {
+            background: #5a67d8;
+            transform: scale(1.1);
+            opacity: 1;
+        }
+        
+        .scroll-btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* 隐藏/显示滚动按钮 */
+        .scroll-buttons.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
+    <!-- 滚动按钮 -->
+    <div class="scroll-buttons">
+        <button class="scroll-btn" onclick="scrollToTop()" title="回到顶部">↑</button>
+        <button class="scroll-btn" onclick="scrollToBottom()" title="去到底部">↓</button>
+    </div>
+    
     <div class="container">
         <header>
             <h1>🔍 Hunter邮箱查找工具</h1>
@@ -575,6 +625,11 @@
             <!-- ChatGPT API设置 -->
             <div class="card api-card">
                 <h2>🤖 ChatGPT API 设置（可选）</h2>
+                <div class="collapse-toggle" onclick="toggleApiInfo('openai')" style="margin-bottom: 15px;">
+                    <span class="collapse-arrow" id="openaiArrow">▶</span>
+                    <span>展开设置</span>
+                </div>
+                <div id="openaiApiInfo" style="display: none;">
                 <div class="form-group">
                     <label for="openaiKey">OpenAI API 密钥:</label>
                     <div class="api-input-group">
@@ -612,11 +667,7 @@
                         勾选后，即使Hunter已提供名字，AI也会重新分析
                     </small>
                 </div>
-                <div class="collapse-toggle" onclick="toggleApiInfo('openai')">
-                    <span class="collapse-arrow" id="openaiArrow">▶</span>
-                    <span>功能说明</span>
-                </div>
-                <div class="api-info" id="openaiApiInfo" style="display: none;">
+                <div class="api-info" style="margin-top: 15px;">
                     <ul>
                         <li>AI会智能分析邮箱地址，提取或猜测合理的名字</li>
                         <li>对于明确的名字（如john.smith@），AI会提取完整名字</li>
@@ -626,11 +677,17 @@
                         <li>此功能需要消耗OpenAI API积分，请合理使用</li>
                     </ul>
                 </div>
+                </div>
             </div>
 
             <!-- Claude API设置 -->
             <div class="card api-card">
                 <h2>🤖 Claude API 设置（可选）</h2>
+                <div class="collapse-toggle" onclick="toggleApiInfo('claude')" style="margin-bottom: 15px;">
+                    <span class="collapse-arrow" id="claudeArrow">▶</span>
+                    <span>展开设置</span>
+                </div>
+                <div id="claudeApiInfo" style="display: none;">
                 <div class="form-group">
                     <label for="proxyUrl">代理服务器地址:</label>
                     <input type="text" id="proxyUrl" placeholder="http://localhost:3001" value="http://localhost:3001" class="form-control">
@@ -671,11 +728,7 @@
                         选择用于智能名字猜测的AI服务。两者效果相似，可根据您的密钥情况选择。
                     </small>
                 </div>
-                <div class="collapse-toggle" onclick="toggleApiInfo('claude')">
-                    <span class="collapse-arrow" id="claudeArrow">▶</span>
-                    <span>功能说明</span>
-                </div>
-                <div class="api-info" id="claudeApiInfo" style="display: none;">
+                <div class="api-info" style="margin-top: 15px;">
                     <ul>
                         <li>Claude AI 提供与 OpenAI 相似的智能分析功能</li>
                         <li>使用 Claude 3.5 Haiku 模型，速度快、成本极低</li>
@@ -683,6 +736,7 @@
                         <li>API 调用费用比 GPT-4 和 Sonnet 都要低很多</li>
                         <li>支持批量处理，提高效率</li>
                     </ul>
+                </div>
                 </div>
             </div>
 
@@ -2928,6 +2982,41 @@ ${emailList}
             window.generatedGreetingCsv = null;
             window.csvParseInfo = null;
         }
+        
+        // 滚动到顶部
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+        
+        // 滚动到底部
+        function scrollToBottom() {
+            window.scrollTo({
+                top: document.documentElement.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+        
+        // 监听滚动事件，智能显示/隐藏按钮
+        let scrollTimer;
+        window.addEventListener('scroll', function() {
+            const scrollButtons = document.querySelector('.scroll-buttons');
+            
+            // 显示按钮
+            if (scrollButtons) {
+                scrollButtons.classList.remove('hidden');
+                
+                // 清除之前的定时器
+                clearTimeout(scrollTimer);
+                
+                // 设置新的定时器，3秒后隐藏
+                scrollTimer = setTimeout(() => {
+                    scrollButtons.classList.add('hidden');
+                }, 3000);
+            }
+        });
         
         // 全局错误捕获
         window.addEventListener('error', function(event) {
