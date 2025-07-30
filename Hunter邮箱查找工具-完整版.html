@@ -569,9 +569,68 @@
             opacity: 0;
             pointer-events: none;
         }
+        
+        /* 固定日志面板 */
+        .fixed-log-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 1100;
+            padding: 10px 20px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        .fixed-log-panel h2 {
+            font-size: 18px;
+            margin: 0 0 10px 0;
+        }
+        
+        .fixed-log-panel .log-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .fixed-log-panel #logPanel {
+            margin-top: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        
+        /* 页面主体内容的间距调整 */
+        body.with-fixed-log {
+            padding-top: 80px;
+        }
+        
+        body.with-fixed-log.log-expanded {
+            padding-top: 300px;
+        }
     </style>
 </head>
-<body>
+<body class="with-fixed-log">
+    <!-- 固定日志面板 -->
+    <div class="fixed-log-panel">
+        <h2>🔧 系统日志</h2>
+        <div class="log-controls">
+            <button onclick="AppLogger.exportLogs()" class="btn btn-small btn-secondary">导出日志</button>
+            <button onclick="refreshLogDisplay()" class="btn btn-small btn-primary">刷新</button>
+            <button onclick="AppLogger.clearLogs(); refreshLogDisplay();" class="btn btn-small btn-secondary">清除日志</button>
+            <button onclick="toggleLogPanel()" class="btn btn-small btn-info">显示/隐藏</button>
+        </div>
+        <div id="logPanel" style="display: none;">
+            <div id="logContent"></div>
+        </div>
+    </div>
+    
     <!-- 滚动按钮 -->
     <div class="scroll-buttons">
         <button class="scroll-btn" onclick="scrollToTop()" title="回到顶部">↑</button>
@@ -743,6 +802,11 @@
             <!-- 单个域名查找 -->
             <div class="card">
                 <h2>单个域名查找</h2>
+                <div class="collapse-toggle" onclick="toggleSection('singleSearch')" style="margin-bottom: 15px;">
+                    <span class="collapse-arrow" id="singleSearchArrow">▶</span>
+                    <span>展开查找界面</span>
+                </div>
+                <div id="singleSearchSection" style="display: none;">
                 <div class="form-group">
                     <label for="singleDomain">域名或网址:</label>
                     <input type="text" id="singleDomain" placeholder="例如: example.com 或 https://www.example.com" class="form-control">
@@ -756,6 +820,7 @@
                     <input type="number" id="emailLimit" value="10" min="1" max="100" class="form-control">
                 </div>
                 <button onclick="searchSingle()" class="btn btn-primary">查找邮箱</button>
+                </div>
             </div>
 
             <!-- 批量查找 -->
@@ -785,6 +850,11 @@ https://example3.com" class="form-control"></textarea>
                 <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
                     上传已有的CSV文件（如从Instantly导出的），仅使用AI生成称呼，无需调用Hunter API
                 </p>
+                <div class="collapse-toggle" onclick="toggleSection('csvGreeting')" style="margin-bottom: 15px;">
+                    <span class="collapse-arrow" id="csvGreetingArrow">▶</span>
+                    <span>展开生成界面</span>
+                </div>
+                <div id="csvGreetingSection" style="display: none;">
                 <div class="form-group">
                     <label for="greetingCsvFile">选择CSV文件:</label>
                     <input type="file" id="greetingCsvFile" accept=".csv" onchange="previewCsvFile()">
@@ -814,6 +884,7 @@ https://example3.com" class="form-control"></textarea>
                         <button onclick="clearGreetingResults()" class="btn btn-secondary">清除结果</button>
                     </div>
                 </div>
+                </div>
             </div>
 
             <!-- 结果显示区域 -->
@@ -840,22 +911,6 @@ https://example3.com" class="form-control"></textarea>
             </div>
         </div>
 
-        <!-- 日志面板 -->
-        <div class="card" style="margin-top: 20px;">
-            <h2>🔧 系统日志</h2>
-            <div style="margin-bottom: 15px;">
-                <button onclick="AppLogger.exportLogs()" class="btn btn-small btn-secondary">导出日志</button>
-                <button onclick="refreshLogDisplay()" class="btn btn-small btn-primary">刷新</button>
-                <button onclick="AppLogger.clearLogs(); refreshLogDisplay();" class="btn btn-small btn-secondary">清除日志</button>
-                <button onclick="toggleLogPanel()" class="btn btn-small btn-info">显示/隐藏</button>
-            </div>
-            <div id="logPanel" style="display: none;">
-                <div style="max-height: 300px; overflow-y: auto; background: #f5f5f5; padding: 10px; border-radius: 5px; font-family: monospace; font-size: 12px;">
-                    <div id="logContent"></div>
-                </div>
-            </div>
-        </div>
-        
         <footer>
             <p>© 2025 Hunter邮箱查找工具 - 完整独立版 | 基于 Hunter.io API</p>
         </footer>
@@ -2479,12 +2534,32 @@ ${emailList}
             return processedEmails;
         }
 
+        // 通用的展开/收起功能
+        function toggleSection(sectionName) {
+            const section = document.getElementById(sectionName + 'Section');
+            const arrow = document.getElementById(sectionName + 'Arrow');
+            
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                arrow.classList.add('expanded');
+            } else {
+                section.style.display = 'none';
+                arrow.classList.remove('expanded');
+            }
+        }
+        
         // 日志面板相关功能
         function toggleLogPanel() {
             const panel = document.getElementById('logPanel');
-            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-            if (panel.style.display === 'block') {
+            const body = document.body;
+            
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                body.classList.add('log-expanded');
                 refreshLogDisplay();
+            } else {
+                panel.style.display = 'none';
+                body.classList.remove('log-expanded');
             }
         }
         
