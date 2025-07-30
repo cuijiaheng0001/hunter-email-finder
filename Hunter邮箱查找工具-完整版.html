@@ -448,6 +448,46 @@
             background: #f8f9fa;
         }
 
+        /* 分页控件样式 */
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .pagination button:hover {
+            background: #f5f5f5;
+        }
+
+        .pagination button:disabled {
+            background: #f9f9f9;
+            color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .pagination .current-page {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .pagination-info {
+            margin: 0 15px;
+            color: #666;
+            font-size: 14px;
+        }
+
         /* 页脚 */
         footer {
             text-align: center;
@@ -589,14 +629,13 @@ https://example3.com" class="form-control"></textarea>
                 <div id="resultContent"></div>
                 <div class="actions">
                     <button onclick="downloadInstantlyCSV()" class="btn btn-primary">下载 Instantly 格式</button>
-                    <button onclick="downloadFullCSV()" class="btn btn-secondary">下载完整 CSV</button>
-                    <button onclick="downloadJSON()" class="btn btn-secondary">下载 JSON</button>
+                    <button onclick="downloadFailedCompaniesCSV()" class="btn btn-secondary">下载未找到邮箱的公司</button>
                     <button onclick="clearResults()" class="btn btn-secondary">清除结果</button>
                 </div>
                 <div class="format-info">
                     <small>
                         <strong>Instantly格式</strong>：Email, First Name, Last Name, Company Name, Phone, Job Title, Country<br>
-                        <strong>完整CSV</strong>：包含所有字段和置信度信息
+                        <strong>未找到邮箱的公司</strong>：包含查找失败或没有找到邮箱的公司列表
                     </small>
                 </div>
             </div>
@@ -616,6 +655,10 @@ https://example3.com" class="form-control"></textarea>
     <script>
         // 全局变量存储结果
         let currentResults = [];
+        
+        // 分页相关变量
+        let currentPage = 1;
+        const resultsPerPage = 50;
         
         // 缓存猜测的名字，避免重复调用API
         const nameGuessCache = new Map();
@@ -693,6 +736,16 @@ https://example3.com" class="form-control"></textarea>
             if (domains.length === 0) {
                 alert('请输入域名或上传文件（支持CSV/TXT格式）');
                 return;
+            }
+            
+            // 添加批量处理数量限制
+            const maxBatchSize = 250;
+            if (domains.length > maxBatchSize) {
+                if (!confirm(`检测到 ${domains.length} 个公司，超过建议的 ${maxBatchSize} 个限制。\n\n处理大量数据可能会：\n• 消耗较多API配额\n• 影响页面性能\n• 可能导致部分数据丢失\n\n建议分批处理。是否继续处理前 ${maxBatchSize} 个公司？`)) {
+                    return;
+                }
+                domains = domains.slice(0, maxBatchSize);
+                alert(`已限制为前 ${maxBatchSize} 个公司进行处理`);
             }
             
             showLoading(true);
@@ -957,17 +1010,24 @@ https://example3.com" class="form-control"></textarea>
             return { results, errors };
         }
 
-        // 显示结果
-        function displayResults(results) {
+        // 显示结果（支持分页）
+        function displayResults(results, page = 1) {
             const resultsDiv = document.getElementById('results');
             const resultContent = document.getElementById('resultContent');
             
             resultsDiv.style.display = 'block';
+            currentPage = page;
             
-            // 统计信息
+            // 统计信息（显示全部数据的统计）
             const totalCompanies = results.length;
             const successfulCompanies = results.filter(r => r.success).length;
             const totalEmails = results.reduce((sum, r) => sum + (r.emails_found || 0), 0);
+            
+            // 计算分页
+            const totalPages = Math.ceil(totalCompanies / resultsPerPage);
+            const startIndex = (page - 1) * resultsPerPage;
+            const endIndex = startIndex + resultsPerPage;
+            const pageResults = results.slice(startIndex, endIndex);
             
             let html = `
                 <div class="stats">
@@ -990,8 +1050,14 @@ https://example3.com" class="form-control"></textarea>
                 </div>
             `;
             
-            // 详细结果
-            results.forEach(result => {
+            // 分页控件
+            if (totalPages > 1) {
+                html += createPaginationControls(page, totalPages, totalCompanies);
+            }
+            
+            // 当前页结果
+            html += `<div class="page-results">`;
+            pageResults.forEach(result => {
                 html += `<div class="result-item">`;
                 
                 if (result.success) {
@@ -1054,13 +1120,50 @@ https://example3.com" class="form-control"></textarea>
                 
                 html += '</div>';
             });
+            html += '</div>';
+            
+            // 底部分页控件
+            if (totalPages > 1) {
+                html += createPaginationControls(page, totalPages, totalCompanies);
+            }
             
             resultContent.innerHTML = html;
         }
 
-        // 下载CSV（保留这个函数用于兼容性）
-        function downloadCSV() {
-            downloadInstantlyCSV();
+        // 创建分页控件
+        function createPaginationControls(currentPage, totalPages, totalItems) {
+            const startItem = (currentPage - 1) * resultsPerPage + 1;
+            const endItem = Math.min(currentPage * resultsPerPage, totalItems);
+            
+            let html = `
+                <div class="pagination">
+                    <button onclick="goToPage(1)" ${currentPage === 1 ? 'disabled' : ''}>首页</button>
+                    <button onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>上一页</button>
+                    
+                    <div class="pagination-info">
+                        第 ${startItem}-${endItem} 项，共 ${totalItems} 项 (第 ${currentPage}/${totalPages} 页)
+                    </div>
+                    
+                    <button onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>下一页</button>
+                    <button onclick="goToPage(${totalPages})" ${currentPage === totalPages ? 'disabled' : ''}>末页</button>
+                </div>
+            `;
+            
+            return html;
+        }
+
+        // 跳转到指定页面
+        function goToPage(page) {
+            if (page < 1 || page > Math.ceil(currentResults.length / resultsPerPage)) {
+                return;
+            }
+            displayResults(currentResults, page);
+            
+            // 滚动到结果区域顶部
+            document.getElementById('results').scrollIntoView({ 
+                behavior: 'smooth', 
+                block: 'start' 
+            });
         }
 
         // 下载Instantly AI格式的CSV
@@ -1133,56 +1236,48 @@ https://example3.com" class="form-control"></textarea>
             }
         }
 
-        // 下载完整格式的CSV（保留所有信息）
-        function downloadFullCSV() {
+        // 下载没有找到邮箱的公司CSV
+        function downloadFailedCompaniesCSV() {
             if (currentResults.length === 0) return;
             
-            const BOM = '\uFEFF';
-            let csv = BOM + 'Company Name,Domain,Email,Email Type,First Name,Last Name,Position,Department,Confidence\n';
+            // 筛选出没有找到邮箱的公司
+            const failedCompanies = currentResults.filter(result => 
+                !result.success || !result.emails || result.emails.length === 0
+            );
             
-            currentResults.forEach(result => {
-                if (result.success && result.emails && result.emails.length > 0) {
-                    result.emails.forEach(email => {
-                        const row = [
-                            result.company_name || '',
-                            result.domain || '',
-                            email.email || '',
-                            email.type || 'unknown',
-                            email.first_name || '',
-                            email.last_name || '',
-                            email.position || '',
-                            email.department || '',
-                            email.confidence !== undefined ? email.confidence : ''
-                        ];
-                        
-                        const escapedRow = row.map(field => {
-                            const str = String(field);
-                            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                                return `"${str.replace(/"/g, '""')}"`;
-                            }
-                            return `"${str}"`;
-                        });
-                        
-                        csv += escapedRow.join(',') + '\n';
-                    });
-                } else {
-                    // 包含没有邮箱的公司
-                    csv += `"${result.company_name || ''}","${result.domain || ''}","","","","","","",""\n`;
-                }
+            if (failedCompanies.length === 0) {
+                alert('没有找到未成功获取邮箱的公司');
+                return;
+            }
+            
+            const BOM = '\uFEFF';
+            let csv = BOM + 'Company Name,Domain,Error Message,Status\n';
+            
+            failedCompanies.forEach(result => {
+                const row = [
+                    result.company_name || '',
+                    result.domain || '',
+                    result.error || (result.success ? '未找到邮箱' : '查找失败'),
+                    result.success ? '成功但无邮箱' : '查找失败'
+                ];
+                
+                const escapedRow = row.map(field => {
+                    const str = String(field);
+                    if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                        return `"${str.replace(/"/g, '""')}"`;
+                    }
+                    return `"${str}"`;
+                });
+                
+                csv += escapedRow.join(',') + '\n';
             });
             
             const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            downloadFile(csv, `hunter_full_results_${timestamp}.csv`, 'text/csv;charset=utf-8');
+            downloadFile(csv, `failed_companies_${timestamp}.csv`, 'text/csv;charset=utf-8');
+            
+            alert(`已下载 ${failedCompanies.length} 个未找到邮箱的公司信息`);
         }
 
-        // 下载JSON
-        function downloadJSON() {
-            if (currentResults.length === 0) return;
-            
-            const json = JSON.stringify(currentResults, null, 2);
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-            downloadFile(json, `hunter_results_${timestamp}.json`, 'application/json');
-        }
 
         // 下载文件
         function downloadFile(content, filename, type) {
@@ -1200,6 +1295,7 @@ https://example3.com" class="form-control"></textarea>
         // 清除结果
         function clearResults() {
             currentResults = [];
+            currentPage = 1; // 重置分页
             document.getElementById('results').style.display = 'none';
             document.getElementById('singleDomain').value = '';
             document.getElementById('companyName').value = '';

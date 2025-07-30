@@ -1,3 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+
 # 操作系统文件
 .DS_Store
 Thumbs.db
@@ -7,6 +20,7 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+*~
 
 # 日志文件
 *.log
@@ -25,6 +39,12 @@ secrets.json
 test-data/
 *.test.csv
 *.test.json
+
+# 项目特定
+output/
+cache/
+temp/
+_archive/
 
 # 下载的结果文件（可选，如果不想上传结果）
 # instantly_contacts_*.csv
