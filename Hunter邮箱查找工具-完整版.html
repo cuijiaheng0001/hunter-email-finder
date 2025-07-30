@@ -1377,6 +1377,9 @@ https://example3.com" class="form-control"></textarea>
                     return processed;
                 });
                 
+                // 异步更新配额信息（不阻塞主流程）
+                updateApiQuota(apiKey).catch(console.error);
+                
                 return {
                     company_name: companyName || data.data.organization || domain,
                     domain: domain,
@@ -1903,35 +1906,78 @@ https://example3.com" class="form-control"></textarea>
             showApiStatus('测试连接中...', 'testing');
             
             try {
-                // 使用一个测试域名来验证API密钥
-                const testDomain = 'google.com';
-                const url = `https://api.hunter.io/v2/domain-search?domain=${testDomain}&api_key=${apiKey}&limit=1`;
-                
-                const response = await fetch(url);
-                const data = await response.json();
-                
-                if (response.ok) {
-                    // 获取账户信息
-                    const accountUrl = `https://api.hunter.io/v2/account?api_key=${apiKey}`;
-                    const accountResponse = await fetch(accountUrl);
-                    const accountData = await accountResponse.json();
-                    
-                    if (accountResponse.ok) {
-                        const remaining = accountData.data.requests.searches.available;
-                        const used = accountData.data.requests.searches.used;
-                        showApiStatus(`连接成功！剩余查询次数: ${remaining} (已使用: ${used})`, 'success');
-                    } else {
-                        showApiStatus('连接成功！', 'success');
-                    }
-                } else {
-                    if (response.status === 401) {
-                        showApiStatus('API密钥无效，请检查', 'error');
-                    } else {
-                        showApiStatus(`连接失败: ${data.errors?.[0]?.details || '未知错误'}`, 'error');
-                    }
-                }
+                await updateApiQuota(apiKey);
             } catch (error) {
                 showApiStatus('网络错误，请检查网络连接', 'error');
+            }
+        }
+        
+        // 更新API配额信息
+        async function updateApiQuota(apiKey) {
+            try {
+                const accountUrl = `https://api.hunter.io/v2/account?api_key=${apiKey}`;
+                const accountResponse = await fetch(accountUrl);
+                const accountData = await accountResponse.json();
+                
+                if (accountResponse.ok) {
+                    const remaining = accountData.data.requests.searches.available;
+                    const used = accountData.data.requests.searches.used;
+                    const total = remaining + used;
+                    
+                    showApiStatus(`连接成功！剩余查询次数: ${remaining} (已使用: ${used}/${total})`, 'success');
+                    
+                    // 保存到全局变量
+                    window.hunterApiQuota = { remaining, used, total };
+                    
+                    // 更新页面标题显示配额
+                    updateQuotaDisplay(remaining, used, total);
+                    
+                    AppLogger.info('API配额更新', { remaining, used, total });
+                    
+                    return { remaining, used, total };
+                } else {
+                    showApiStatus('连接成功！', 'success');
+                    return null;
+                }
+            } catch (error) {
+                console.error('更新配额失败:', error);
+                return null;
+            }
+        }
+        
+        // 更新页面上的配额显示
+        function updateQuotaDisplay(remaining, used, total) {
+            // 在Hunter API密钥区域添加配额显示
+            let quotaDisplay = document.getElementById('quotaDisplay');
+            if (!quotaDisplay) {
+                quotaDisplay = document.createElement('div');
+                quotaDisplay.id = 'quotaDisplay';
+                quotaDisplay.style.cssText = 'margin-top: 10px; padding: 8px; background: #e6f2ff; border-radius: 5px; font-size: 14px;';
+                
+                const apiKeySection = document.querySelector('.api-card:first-child .form-group');
+                apiKeySection.appendChild(quotaDisplay);
+            }
+            
+            const percentage = ((total - remaining) / total * 100).toFixed(1);
+            const now = new Date().toLocaleTimeString();
+            quotaDisplay.innerHTML = `
+                <strong>📊 API使用情况</strong> <small style="color: #666;">(${now}更新)</small><br>
+                剩余: <span style="color: #22543d; font-weight: bold;">${remaining}</span> | 
+                已使用: <span style="color: #742a2a;">${used}</span> | 
+                总计: ${total} | 
+                使用率: <span style="color: ${percentage > 80 ? '#742a2a' : '#22543d'};">${percentage}%</span>
+            `;
+            
+            // 如果使用率过高，显示警告
+            if (percentage > 90) {
+                quotaDisplay.style.background = '#fed7d7';
+                quotaDisplay.style.border = '1px solid #e53e3e';
+            } else if (percentage > 80) {
+                quotaDisplay.style.background = '#fef3c7';
+                quotaDisplay.style.border = '1px solid #f59e0b';
+            } else {
+                quotaDisplay.style.background = '#e6f2ff';
+                quotaDisplay.style.border = 'none';
             }
         }
 
@@ -3135,9 +3181,9 @@ ${emailList}
             if (savedApiKey) {
                 document.getElementById('apiKey').value = savedApiKey;
                 showApiStatus('已加载保存的API密钥', 'success');
-                // 自动测试连接
-                setTimeout(() => {
-                    testApiKey();
+                // 自动测试连接并更新配额
+                setTimeout(async () => {
+                    await testApiKey();
                 }, 500);
             }
 
