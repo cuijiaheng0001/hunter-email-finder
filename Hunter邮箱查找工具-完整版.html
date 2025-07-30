@@ -786,6 +786,56 @@ https://example3.com" class="form-control"></textarea>
                 <button onclick="searchBatch()" class="btn btn-primary">批量查找</button>
             </div>
 
+            <!-- JSON文件处理 -->
+            <div class="card">
+                <h2>🔧 JSON文件处理工具</h2>
+                <p style="color: #666; font-size: 14px; margin-bottom: 15px;">
+                    上传包含公司信息的TXT/JSON文件，自动去重、修复格式错误并标准化数据
+                </p>
+                <div class="collapse-toggle" onclick="toggleSection('jsonProcessor')" style="margin-bottom: 15px;">
+                    <span class="collapse-arrow" id="jsonProcessorArrow">▶</span>
+                    <span>展开处理界面</span>
+                </div>
+                <div id="jsonProcessorSection" style="display: none;">
+                    <div class="form-group">
+                        <label for="jsonFile">选择JSON/TXT文件:</label>
+                        <input type="file" id="jsonFile" accept=".txt,.json" onchange="previewJsonFile()">
+                        <small>
+                            支持格式：<br>
+                            • 单个数组：[{"company_name": "公司名", "website": "网址"}]<br>
+                            • 多个数组：[{...}][{...}]...<br>
+                            • 自动修复常见JSON错误（尾随逗号等）
+                        </small>
+                    </div>
+                    <div id="jsonPreview" style="display: none; margin-top: 15px;">
+                        <h3 style="font-size: 16px; margin-bottom: 10px;">文件预览</h3>
+                        <div id="jsonPreviewContent" style="background: #f5f5f5; padding: 10px; border-radius: 5px; font-size: 12px; max-height: 200px; overflow-y: auto; white-space: pre-wrap; font-family: monospace;"></div>
+                        <div style="margin-top: 10px;">
+                            <small>原始数据统计：<span id="jsonStats" style="font-weight: bold;"></span></small>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-top: 15px;">
+                        <label>
+                            <input type="checkbox" id="removeDuplicates" checked>
+                            去除重复数据（基于域名）
+                        </label>
+                    </div>
+                    <button onclick="processJsonFile()" class="btn btn-primary">处理文件</button>
+                    
+                    <!-- 处理结果显示 -->
+                    <div id="jsonResults" style="display: none; margin-top: 20px; padding: 15px; background: #f0f9ff; border-radius: 5px;">
+                        <h3 style="font-size: 16px; margin-bottom: 10px; color: #22543d;">✅ 处理完成</h3>
+                        <p id="jsonResultText" style="margin-bottom: 15px;"></p>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button onclick="downloadProcessedJson()" class="btn btn-primary">下载JSON格式</button>
+                            <button onclick="downloadProcessedCsv()" class="btn btn-primary">下载CSV格式</button>
+                            <button onclick="copyToClipboard()" class="btn btn-secondary">复制到剪贴板</button>
+                            <button onclick="clearJsonResults()" class="btn btn-secondary">清除结果</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- CSV文件称呼生成 -->
             <div class="card">
                 <h2>📝 CSV文件称呼生成</h2>
@@ -3057,6 +3107,207 @@ ${emailList}
             document.getElementById('csvPreview').style.display = 'none';
             window.generatedGreetingCsv = null;
             window.csvParseInfo = null;
+        }
+        
+        // JSON文件处理相关功能
+        async function previewJsonFile() {
+            const fileInput = document.getElementById('jsonFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                document.getElementById('jsonPreview').style.display = 'none';
+                return;
+            }
+            
+            try {
+                const text = await file.text();
+                
+                // 显示预览
+                const previewDiv = document.getElementById('jsonPreview');
+                const previewContent = document.getElementById('jsonPreviewContent');
+                const jsonStats = document.getElementById('jsonStats');
+                
+                previewDiv.style.display = 'block';
+                
+                // 显示前1000个字符
+                const previewText = text.length > 1000 ? text.substring(0, 1000) + '...\n(文件过大，仅显示前1000个字符)' : text;
+                previewContent.textContent = previewText;
+                
+                // 尝试解析并统计
+                const { results, errors } = parseMultiArrayJSON(text);
+                const stats = `找到 ${results.length} 条记录${errors.length > 0 ? `, ${errors.length} 个警告` : ''}`;
+                jsonStats.textContent = stats;
+                
+                // 保存解析结果供后续使用
+                window.jsonParsePreview = { text, results, errors };
+                
+            } catch (error) {
+                alert('读取文件失败: ' + error.message);
+                AppLogger.error('JSON文件读取失败', { error: error.message });
+            }
+        }
+        
+        // 处理JSON文件
+        async function processJsonFile() {
+            const fileInput = document.getElementById('jsonFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('请先选择文件');
+                return;
+            }
+            
+            try {
+                showLoading(true);
+                updateLoadingText('正在处理JSON文件...');
+                
+                // 使用预览时的解析结果或重新解析
+                let parseResult;
+                if (window.jsonParsePreview && window.jsonParsePreview.text) {
+                    parseResult = window.jsonParsePreview;
+                } else {
+                    const text = await file.text();
+                    parseResult = { ...parseMultiArrayJSON(text), text };
+                }
+                
+                let { results, errors } = parseResult;
+                const originalCount = results.length;
+                
+                // 去重处理
+                const removeDuplicates = document.getElementById('removeDuplicates').checked;
+                if (removeDuplicates && results.length > 0) {
+                    updateLoadingText('正在去除重复数据...');
+                    const domainMap = new Map();
+                    
+                    results.forEach(item => {
+                        const domain = extractDomain(item.domain);
+                        if (domain && !domainMap.has(domain)) {
+                            domainMap.set(domain, {
+                                company_name: item.company_name || domain,
+                                domain: domain
+                            });
+                        }
+                    });
+                    
+                    results = Array.from(domainMap.values());
+                }
+                
+                const duplicatesRemoved = originalCount - results.length;
+                
+                // 保存处理结果
+                window.processedJsonData = {
+                    results,
+                    originalCount,
+                    duplicatesRemoved,
+                    errors,
+                    fileName: file.name
+                };
+                
+                // 显示结果
+                showJsonResults();
+                
+                AppLogger.info('JSON文件处理完成', {
+                    originalCount,
+                    finalCount: results.length,
+                    duplicatesRemoved,
+                    errors: errors.length
+                });
+                
+            } catch (error) {
+                AppLogger.error('处理JSON文件失败', { error: error.message });
+                alert('处理文件失败: ' + error.message);
+            } finally {
+                showLoading(false);
+            }
+        }
+        
+        // 显示JSON处理结果
+        function showJsonResults() {
+            const data = window.processedJsonData;
+            if (!data) return;
+            
+            const resultDiv = document.getElementById('jsonResults');
+            const resultText = document.getElementById('jsonResultText');
+            
+            resultText.innerHTML = `
+                <strong>处理统计：</strong><br>
+                • 原始记录数：${data.originalCount}<br>
+                • 去除重复：${data.duplicatesRemoved}<br>
+                • 最终记录数：${data.results.length}<br>
+                ${data.errors.length > 0 ? `• 处理警告：${data.errors.length} 个<br>` : ''}
+                • 文件名：${data.fileName}
+            `;
+            
+            resultDiv.style.display = 'block';
+            resultDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        
+        // 下载处理后的JSON
+        function downloadProcessedJson() {
+            const data = window.processedJsonData;
+            if (!data || !data.results) {
+                alert('没有可下载的数据');
+                return;
+            }
+            
+            const jsonContent = JSON.stringify(data.results, null, 2);
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const fileName = `processed_companies_${timestamp}.json`;
+            
+            downloadFile(jsonContent, fileName, 'application/json');
+            AppLogger.info('下载JSON文件', { fileName, count: data.results.length });
+        }
+        
+        // 下载处理后的CSV
+        function downloadProcessedCsv() {
+            const data = window.processedJsonData;
+            if (!data || !data.results) {
+                alert('没有可下载的数据');
+                return;
+            }
+            
+            const BOM = '\uFEFF';
+            let csv = BOM + 'company_name,domain\n';
+            
+            data.results.forEach(item => {
+                const companyName = (item.company_name || '').replace(/"/g, '""');
+                const domain = (item.domain || '').replace(/"/g, '""');
+                csv += `"${companyName}","${domain}"\n`;
+            });
+            
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+            const fileName = `processed_companies_${timestamp}.csv`;
+            
+            downloadFile(csv, fileName, 'text/csv;charset=utf-8');
+            AppLogger.info('下载CSV文件', { fileName, count: data.results.length });
+        }
+        
+        // 复制到剪贴板
+        async function copyToClipboard() {
+            const data = window.processedJsonData;
+            if (!data || !data.results) {
+                alert('没有可复制的数据');
+                return;
+            }
+            
+            try {
+                const jsonContent = JSON.stringify(data.results, null, 2);
+                await navigator.clipboard.writeText(jsonContent);
+                alert(`已复制 ${data.results.length} 条记录到剪贴板`);
+                AppLogger.info('复制到剪贴板', { count: data.results.length });
+            } catch (error) {
+                alert('复制失败，请手动选择下载');
+                AppLogger.error('复制到剪贴板失败', { error: error.message });
+            }
+        }
+        
+        // 清除JSON处理结果
+        function clearJsonResults() {
+            document.getElementById('jsonResults').style.display = 'none';
+            document.getElementById('jsonFile').value = '';
+            document.getElementById('jsonPreview').style.display = 'none';
+            window.processedJsonData = null;
+            window.jsonParsePreview = null;
         }
         
         // 滚动到顶部
