@@ -768,6 +768,11 @@
             <!-- 批量查找 -->
             <div class="card">
                 <h2>批量域名查找</h2>
+                <div class="collapse-toggle" onclick="toggleSection('batchSearch')" style="margin-bottom: 15px;">
+                    <span class="collapse-arrow" id="batchSearchArrow">▶</span>
+                    <span>展开批量查找</span>
+                </div>
+                <div id="batchSearchSection" style="display: none;">
                 <div class="form-group">
                     <label for="batchInput">域名列表 (每行一个):</label>
                     <textarea id="batchInput" rows="5" placeholder="example1.com
@@ -775,15 +780,26 @@ example2.com
 https://example3.com" class="form-control"></textarea>
                 </div>
                 <div class="form-group">
-                    <label>或上传文件 (CSV/TXT):</label>
-                    <input type="file" id="csvFile" accept=".csv,.txt" class="form-control">
+                    <label>或上传文件 (CSV/TXT/JSON):</label>
+                    <input type="file" id="csvFile" accept=".csv,.txt,.json" class="form-control">
                     <small>
                         支持格式：<br>
                         • CSV: company_name, domain/website<br>
-                        • TXT: JSON格式 [{"company_name": "公司名", "website": "网址"}]
+                        • TXT/JSON: [{"company_name": "公司名", "website": "网址"}]<br>
+                        • 自动识别多种JSON格式和字段名
+                    </small>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="useJsonProcessor" style="margin-right: 8px;">
+                        上传前使用JSON处理工具清理数据
+                    </label>
+                    <small style="display: block; margin-top: 5px;">
+                        建议先使用JSON处理工具去重和标准化数据，可节省API调用次数
                     </small>
                 </div>
                 <button onclick="searchBatch()" class="btn btn-primary">批量查找</button>
+                </div>
             </div>
 
             <!-- JSON文件处理 -->
@@ -1448,18 +1464,50 @@ https://example3.com" class="form-control"></textarea>
                             }
                             
                             resolve(results);
-                        } else if (fileName.endsWith('.txt')) {
+                        } else if (fileName.endsWith('.txt') || fileName.endsWith('.json')) {
                             // 使用新的JSON解析方法
                             const { results, errors } = parseMultiArrayJSON(text);
                             
                             if (errors.length > 0) {
                                 console.warn('JSON解析警告:', errors);
-                                alert(`成功解析 ${results.length} 个公司\n\n${errors.length > 0 ? '注意：\n' + errors.join('\n') : ''}`);
-                            } else {
-                                console.log(`成功解析 ${results.length} 个公司`);
+                                AppLogger.warn('JSON文件解析警告', { errors, count: results.length });
                             }
                             
-                            resolve(results);
+                            // 如果用户勾选了使用JSON处理工具
+                            const useProcessor = document.getElementById('useJsonProcessor');
+                            if (useProcessor && useProcessor.checked && results.length > 0) {
+                                // 去重处理
+                                const domainMap = new Map();
+                                results.forEach(item => {
+                                    const domain = extractDomain(item.domain);
+                                    if (domain && !domainMap.has(domain)) {
+                                        domainMap.set(domain, {
+                                            company_name: item.company_name || domain,
+                                            domain: domain
+                                        });
+                                    }
+                                });
+                                
+                                const processedResults = Array.from(domainMap.values());
+                                const duplicatesRemoved = results.length - processedResults.length;
+                                
+                                if (duplicatesRemoved > 0) {
+                                    alert(`JSON文件处理完成！\n\n原始记录：${results.length} 条\n去除重复：${duplicatesRemoved} 条\n最终数据：${processedResults.length} 条\n\n${errors.length > 0 ? '处理警告：' + errors.length + ' 个' : ''}`);
+                                }
+                                
+                                AppLogger.info('JSON文件自动去重', { 
+                                    original: results.length, 
+                                    removed: duplicatesRemoved,
+                                    final: processedResults.length 
+                                });
+                                
+                                resolve(processedResults);
+                            } else {
+                                if (results.length > 0) {
+                                    alert(`成功解析 ${results.length} 个公司\n\n${errors.length > 0 ? '注意：\n' + errors.join('\n') : ''}`);
+                                }
+                                resolve(results);
+                            }
                         } else {
                             reject(new Error('不支持的文件格式'));
                         }
@@ -1493,10 +1541,16 @@ https://example3.com" class="form-control"></textarea>
                     
                     if (Array.isArray(parsed)) {
                         parsed.forEach(item => {
-                            results.push({
-                                company_name: item.company_name || '',
-                                domain: item.website || item.domain || ''
-                            });
+                            // 支持多种字段名
+                            const companyName = item.company_name || item.companyName || item.company || item.name || '';
+                            const domain = item.website || item.domain || item.url || item.site || '';
+                            
+                            if (domain) {  // 只添加有域名的记录
+                                results.push({
+                                    company_name: companyName,
+                                    domain: domain
+                                });
+                            }
                         });
                     }
                 } catch (e) {
@@ -1509,10 +1563,15 @@ https://example3.com" class="form-control"></textarea>
                         const parsed = JSON.parse(fixedStr);
                         if (Array.isArray(parsed)) {
                             parsed.forEach(item => {
-                                results.push({
-                                    company_name: item.company_name || '',
-                                    domain: item.website || item.domain || ''
-                                });
+                                const companyName = item.company_name || item.companyName || item.company || item.name || '';
+                                const domain = item.website || item.domain || item.url || item.site || '';
+                                
+                                if (domain) {
+                                    results.push({
+                                        company_name: companyName,
+                                        domain: domain
+                                    });
+                                }
                             });
                             errors.push(`修复并解析了一个格式错误的数组`);
                         }
@@ -1547,10 +1606,15 @@ https://example3.com" class="form-control"></textarea>
                     const parsed = JSON.parse(fixedArray);
                     if (Array.isArray(parsed)) {
                         parsed.forEach(item => {
-                            results.push({
-                                company_name: item.company_name || '',
-                                domain: item.website || item.domain || ''
-                            });
+                            const companyName = item.company_name || item.companyName || item.company || item.name || '';
+                            const domain = item.website || item.domain || item.url || item.site || '';
+                            
+                            if (domain) {
+                                results.push({
+                                    company_name: companyName,
+                                    domain: domain
+                                });
+                            }
                         });
                         errors.push('处理了文件末尾的未完成数组');
                     }
